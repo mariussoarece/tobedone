@@ -9,6 +9,7 @@ import UserNotifications
 
 // MARK: - Settings View
 struct SettingsView: View {
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("selectedTheme") private var selectedTheme: String = "Default"
     @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     @AppStorage("reminderHour") private var reminderHour: Int = 22
@@ -21,7 +22,7 @@ struct SettingsView: View {
         "NGN", "MYR", "IDR", "VND", "ILS", "BGN", "UAH", "PKR"
     ]
     var body: some View {
-        NavigationStack {
+        Group {
             VStack(alignment: .leading, spacing: 16) {
                 // ✅ Custom large title — not next to the back button
                 Text("Settings")
@@ -61,7 +62,8 @@ struct SettingsView: View {
                                     let comps = Calendar.current.dateComponents([.hour, .minute], from: newValue)
                                     reminderHour = comps.hour ?? 22
                                     reminderMinute = comps.minute ?? 0
-                                    scheduleDailyActivityReminder()
+                                    UserDefaults.standard.set(true, forKey: ActivityReminderScheduler.enabledKey)
+                                    ActivityReminderScheduler.refresh(context: modelContext)
                                 }
                             ),
                             displayedComponents: .hourAndMinute
@@ -74,41 +76,5 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline) // optional
             .navigationTitle("")
         }
-    }
-    func scheduleDailyActivityReminder() {
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["activityReminder"])
-
-        let content = UNMutableNotificationContent()
-        content.title = "Daily Activity Reminder"
-        content.body = buildIncompleteActivitiesMessage()
-        content.sound = .default
-
-        let trigger = UNCalendarNotificationTrigger(
-            dateMatching: DateComponents(hour: reminderHour, minute: reminderMinute),
-            repeats: true
-        )
-
-        let request = UNNotificationRequest(
-            identifier: "activityReminder",
-            content: content,
-            trigger: trigger
-        )
-
-        center.add(request)
-    }
-    func buildIncompleteActivitiesMessage() -> String {
-        let context = ModelContext(try! ModelContainer(for: ActivityItem.self))
-        let today = Calendar.current.startOfDay(for: Date())
-
-        let items = try? context.fetch(FetchDescriptor<ActivityItem>())
-        let incomplete = items?.filter { !$0.isCompleted && Calendar.current.isDate($0.date, inSameDayAs: today) } ?? []
-
-        if incomplete.isEmpty {
-            return "All activities completed today. Great job!"
-        }
-
-        let bullets = incomplete.map { "• \($0.name)" }.joined(separator: "\n")
-        return "You still have activities to complete:\n\(bullets)"
     }
 }

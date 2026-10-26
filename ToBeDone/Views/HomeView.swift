@@ -10,6 +10,7 @@ struct HomeView: View {
     @State private var showFocusTest = false
     @State private var startTest = false
     @State private var showResults = false
+    @State private var openResultsAfterTest = false
 
     var body: some View {
         NavigationStack {
@@ -122,8 +123,15 @@ struct HomeView: View {
                     .frame(maxWidth: .infinity)
                 }
             }
-            .fullScreenCover(isPresented: $startTest) {
-                RedDotFocusTestView(shouldReturnToHome: false, onFinish: { showResults = true })
+            .fullScreenCover(isPresented: $startTest, onDismiss: {
+                // Open results only after the test screen has fully closed;
+                // presenting both at once made the results screen not appear.
+                if openResultsAfterTest {
+                    openResultsAfterTest = false
+                    showResults = true
+                }
+            }) {
+                RedDotFocusTestView(shouldReturnToHome: false, onFinish: { openResultsAfterTest = true })
             }
             .fullScreenCover(isPresented: $showResults) {
                 ResultsListView()

@@ -11,7 +11,9 @@ struct RedDotFocusTestView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var timerValue: Double = 0
+    @State private var startDate = Date()
     @State private var timer: Timer?
+    @State private var finished = false
 
     let shouldReturnToHome: Bool
     let onFinish: (() -> Void)?
@@ -20,13 +22,10 @@ struct RedDotFocusTestView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
+            // ZStack centers the dot on every screen size
             Circle()
                 .fill(.red)
                 .frame(width: 150, height: 150)
-                .position(
-                    x: UIScreen.main.bounds.width / 2,
-                    y: UIScreen.main.bounds.height / 2
-                )
 
             VStack {
                 Text(String(format: "%.2f s", timerValue))
@@ -36,21 +35,33 @@ struct RedDotFocusTestView: View {
                 Spacer()
             }
         }
+        .contentShape(Rectangle())
         .onAppear { startTimer() }
+        .onDisappear { stopTimer() }
         .onTapGesture { finishTest() }
     }
 
     private func startTimer() {
         timerValue = 0
-        timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { _ in
-            timerValue += 0.01
+        startDate = Date()
+        timer?.invalidate()
+        // Measure real elapsed time; adding 0.01 per tick drifts because ticks get skipped
+        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            timerValue = Date().timeIntervalSince(startDate)
         }
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
     }
     @AppStorage("hasSeenIntroPage") private var hasSeenIntroPage: Bool = false
 
     private func finishTest() {
-        timer?.invalidate()
-        timer = nil
+        guard !finished else { return }   // ignore extra taps while closing
+        finished = true
+        stopTimer()
+        timerValue = Date().timeIntervalSince(startDate)
 
         let result = FocusResult(date: Date(), duration: timerValue)
         modelContext.insert(result)
@@ -58,11 +69,7 @@ struct RedDotFocusTestView: View {
 
         hasSeenIntroPage = true
 
-        if shouldReturnToHome {
-            dismiss()   // return to HomeView
-        } else {
-            dismiss()               // Home → Test → Home
-            onFinish?()
-        }
+        onFinish?()
+        dismiss()
     }
 }

@@ -19,7 +19,7 @@ struct AddActivitySheet: View {
     @State private var repeatDailyWholeWeek: Bool = true
     @State private var repeatWeeksCount: Int = 4   // 1…52
     @State private var showingOverlapAlert = false
-    @State private var pendingItem: ActivityItem?
+    @State private var pendingItems: [ActivityItem] = []
 
     var onSave: ([ActivityItem]) -> Void
 
@@ -84,49 +84,30 @@ struct AddActivitySheet: View {
                         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmed.isEmpty else { return }
 
+                        // Build every occurrence first (1 item, or one per repeated week)
+                        let weeks = repeatWeekly ? repeatWeeksCount : 1
+                        let sid: UUID? = repeatWeekly ? UUID() : nil
                         var newItems: [ActivityItem] = []
-
-                        if repeatWeekly {
-                            let sid = UUID()
-                            for w in 0..<repeatWeeksCount {
-                                let next = Calendar.current.date(byAdding: .weekOfYear, value: w, to: date)!
-                                let item = ActivityItem(
-                                    date: next,
-                                    name: trimmed,
-                                    details: details,
-                                    durationMinutes: Int(duration)
-                                )
-                                item.seriesId = sid
-
-                                // ⭐ OVERLAP CHECK
-                                if overlaps(item, in: (try? modelContext.fetch(FetchDescriptor<ActivityItem>())) ?? []) {
-                                    pendingItem = item
-                                    showingOverlapAlert = true
-                                    break
-                                }
-
-                                newItems.append(item)
-                            }
-                        } else {
-                            let item = ActivityItem(
-                                date: date,
+                        for w in 0..<weeks {
+                            let next = Calendar.current.date(byAdding: .weekOfYear, value: w, to: date) ?? date
+                            newItems.append(ActivityItem(
+                                date: next,
                                 name: trimmed,
                                 details: details,
-                                durationMinutes: Int(duration)
-                            )
-
-                            // ⭐ OVERLAP CHECK
-                            if overlaps(item, in: (try? modelContext.fetch(FetchDescriptor<ActivityItem>())) ?? []) {
-                                pendingItem = item
-                                showingOverlapAlert = true
-                            } else {
-                                newItems.append(item)
-                            }
-
+                                durationMinutes: Int(duration),
+                                seriesId: sid,
+                                repeatsWeekly: repeatWeekly,
+                                repeatWeeks: repeatWeekly ? repeatWeeksCount : 0
+                            ))
                         }
 
-                        // ⭐ Only save if no overlap alert is shown
-                        if !showingOverlapAlert {
+                        // ⭐ OVERLAP CHECK — if any occurrence overlaps, ask once for the whole set.
+                        // (Before, "Create Anyway" saved only the overlapping week and dropped the others.)
+                        let existing = (try? modelContext.fetch(FetchDescriptor<ActivityItem>())) ?? []
+                        if newItems.contains(where: { overlaps($0, in: existing) }) {
+                            pendingItems = newItems
+                            showingOverlapAlert = true
+                        } else {
                             onSave(newItems)
                             dismiss()
                         }
@@ -135,10 +116,9 @@ struct AddActivitySheet: View {
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .alert("Activity Overlaps", isPresented: $showingOverlapAlert) {
                         Button("Create Anyway") {
-                            if let item = pendingItem {
-                                onSave([item])
-                                dismiss()
-                            }
+                            onSave(pendingItems)
+                            pendingItems = []
+                            dismiss()
                         }
                         Button("Cancel", role: .cancel) {}
                     } message: {

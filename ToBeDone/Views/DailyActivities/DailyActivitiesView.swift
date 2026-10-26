@@ -24,8 +24,6 @@ struct DailyActivitiesView: View {
     @State private var showingAddSheet = false
     @State private var exportURL: URL?
     @State private var showingImporter = false
-    @AppStorage("reminderHour") private var reminderHour: Int = 22
-    @AppStorage("reminderMinute") private var reminderMinute: Int = 0
     @State private var viewMode: ViewMode = .monthly
     enum ViewMode { case monthly, weekly }
     @State private var currentWeekStart: Date = Calendar.current.startOfWeek(for: .now)
@@ -41,14 +39,12 @@ struct DailyActivitiesView: View {
                 .padding(.horizontal)
 
             // Buttons always below the title
-            HStack {
-                Button("Monthly") { viewMode = .monthly }
-                    .buttonStyle(.borderedProminent)
-
-                Button("Weekly") { viewMode = .weekly }
-                    .buttonStyle(.bordered)
+            // Segmented picker shows which view is active
+            Picker("View", selection: $viewMode) {
+                Text("Monthly").tag(ViewMode.monthly)
+                Text("Weekly").tag(ViewMode.weekly)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .pickerStyle(.segmented)
             .padding(.horizontal)
             if viewMode == .monthly {
                 header
@@ -92,6 +88,7 @@ struct DailyActivitiesView: View {
                 }
                 try? modelContext.save()
                 syncConfidenceForDays(affected)
+                ActivityReminderScheduler.refresh(context: modelContext)
             }
         }
         .fileImporter(
@@ -168,14 +165,19 @@ struct DailyActivitiesView: View {
                 List {
                     ForEach(dayActivities(selectedDate)) { item in
                         ActivityRow(item: item, onToggle: { updated in
-                            updated.isCompleted.toggle(); try? modelContext.save(); syncConfidenceForDay(selectedDate)
+                            updated.isCompleted.toggle()
+                            try? modelContext.save()
+                            syncConfidenceForDay(selectedDate)
+                            ActivityReminderScheduler.refresh(context: modelContext)
                         })
 
                     }
                     .onDelete { indexSet in
                         let items = dayActivities(selectedDate)
                         for i in indexSet { modelContext.delete(items[i]) }
-                        try? modelContext.save(); syncConfidenceForDay(selectedDate)
+                        try? modelContext.save()
+                        syncConfidenceForDay(selectedDate)
+                        ActivityReminderScheduler.refresh(context: modelContext)
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -220,12 +222,23 @@ struct DailyActivitiesView: View {
         return scores
     }
 
-    // Write or update a ConfidenceEntry for the selected day
+    // Write or update the activity-based ConfidenceEntry for a day.
+    // Only touches entries tagged "activities", so scores you logged yourself
+    // in the Confidence screen are never overwritten.
     private func syncConfidenceForDay(_ date: Date) {
-        guard let score = scoreForDay(date) else { return }
         let cal = Calendar.current
         let dayStart = cal.startOfDay(for: date)
-        let existing = confidenceEntries.first { cal.isDate($0.date, inSameDayAs: dayStart) }
+        let existing = confidenceEntries.first {
+            cal.isDate($0.date, inSameDayAs: dayStart) && $0.tags.contains("activities")
+        }
+        guard let score = scoreForDay(date) else {
+            // No activities left that day: remove the derived score
+            if let e = existing {
+                modelContext.delete(e)
+                try? modelContext.save()
+            }
+            return
+        }
         if let e = existing {
             e.score = score
         } else {
@@ -307,64 +320,9 @@ struct DailyActivitiesView: View {
             }
 
             try? modelContext.save()
+            ActivityReminderScheduler.refresh(context: modelContext)
         } catch {
             print("Import decode error:", error)
         }
     }
-    // MARK: - Daily Reminder Scheduler
-    private func scheduleDailyActivityReminder() {
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["activityReminder"])
-
-        let content = UNMutableNotificationContent()
-        content.title = "Daily Activity Reminder"
-        content.body = buildIncompleteActivitiesMessage()
-        content.sound = .default
-
-        let trigger = UNCalendarNotificationTrigger(
-            dateMatching: DateComponents(hour: reminderHour, minute: reminderMinute),
-            repeats: true
-        )
-
-        let request = UNNotificationRequest(
-            identifier: "activityReminder",
-            content: content,
-            trigger: trigger
-        )
-
-        center.add(request)
-    }
-
-    private func buildIncompleteActivitiesMessage() -> String {
-        let today = Calendar.current.startOfDay(for: Date())
-        let incomplete = allActivities.filter {
-            !$0.isCompleted && Calendar.current.isDate($0.date, inSameDayAs: today)
-        }
-
-        if incomplete.isEmpty {
-            return "All activities completed today. Great job!"
-        }
-
-        let bullets = incomplete.map { "• \($0.name)" }.joined(separator: "\n")
-        return "You still have activities to complete:\n\(bullets)"
-    }
-    private func overlaps(_ newItem: ActivityItem) -> Bool {
-        let cal = Calendar.current
-
-        for item in allActivities {
-            if cal.isDate(item.date, inSameDayAs: newItem.date) {
-                let startA = item.date
-                let endA = item.date.addingTimeInterval(TimeInterval(item.durationMinutes * 60))
-
-                let startB = newItem.date
-                let endB = newItem.date.addingTimeInterval(TimeInterval(newItem.durationMinutes * 60))
-
-                if startA < endB && startB < endA {
-                    return true
-                }
-            }
-        }
-        return false
-    }
-
 }

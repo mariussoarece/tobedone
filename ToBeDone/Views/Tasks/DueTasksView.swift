@@ -18,7 +18,7 @@ struct DueTasksView: View {
     @State private var showingShareSheet = false
 
     var body: some View {
-        NavigationStack {
+        Group {
             VStack(alignment: .leading, spacing: 16) {
 
                 // Custom large title
@@ -163,9 +163,7 @@ struct DueTasksView: View {
 
         modelContext.insert(newTask)
         try? modelContext.save()
-
-        // If you use local notifications, schedule here:
-        // NotificationManager.shared.scheduleNotification(for: newTask)
+        NotificationManager.shared.scheduleNotification(for: newTask)
 
         // Reset UI
         newTaskTitle = ""
@@ -176,6 +174,12 @@ struct DueTasksView: View {
     private func toggleCompletion(_ task: TaskModel) {
         task.isCompleted.toggle()
         try? modelContext.save()
+        if task.isCompleted {
+            NotificationManager.shared.cancelNotification(for: task)
+        } else {
+            // Un-completing a task brings its reminder back
+            NotificationManager.shared.scheduleNotification(for: task)
+        }
     }
 
     private func sortedTasks() -> [TaskModel] {
@@ -198,6 +202,7 @@ struct DueTasksView: View {
         let completed = sortedTasks().filter { $0.isCompleted }
         for index in offsets {
             let taskToDelete = completed[index]
+            NotificationManager.shared.cancelNotification(for: taskToDelete)
             modelContext.delete(taskToDelete)
         }
         try? modelContext.save()
@@ -276,6 +281,7 @@ struct DueTasksView: View {
                 item.isCompleted = dto.isCompleted
 
                 modelContext.insert(item)
+                NotificationManager.shared.scheduleNotification(for: item)
             }
 
             try? modelContext.save()

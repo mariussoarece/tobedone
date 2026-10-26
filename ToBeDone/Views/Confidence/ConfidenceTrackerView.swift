@@ -17,19 +17,20 @@ struct ConfidenceTrackerView: View {
     @State private var selectedTags: Set<String> = []
     @State private var showNoteField: Bool = false
     @State private var showSavedBanner: Bool = false
+    @State private var confirmDeleteAll: Bool = false
 
     // Customize the tags to your domain
     private let availableTags = [ "workout", "social", "focus", "rest", "morning", "evening"]
 
     var body: some View {
-        NavigationStack {
+        Group {
             VStack(alignment: .leading, spacing: 16) {
                 // ✅ Custom large title — consistent with your other views
                 Text("Confidence")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.purple)       // pick any color you like
-                    .padding(.horizontal, -20)
+                    .padding(.horizontal)
 
                 ScrollView {
                     VStack(spacing: 16) {
@@ -46,6 +47,11 @@ struct ConfidenceTrackerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationTitle("")                    // hide default title to avoid duplication
             .onAppear { UIImpactFeedbackGenerator(style: .soft).impactOccurred() }
+            .confirmationDialog("Delete all confidence entries?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
+                Button("Delete All", role: .destructive) { deleteAll() }
+            } message: {
+                Text("This can't be undone.")
+            }
             .overlay(alignment: .top) {
                 if showSavedBanner {
                     SavedBanner()
@@ -73,7 +79,7 @@ struct ConfidenceTrackerView: View {
     private var inputCard: some View {
         VStack(spacing: 12) {
             // Quick picks 1–10
-            HStack { ForEach(1...10, id: \.self) { n in
+            HStack(spacing: 4) { ForEach(1...10, id: \.self) { n in
                 Button(action: {
                     score = Double(n)
                     haptic()
@@ -81,7 +87,7 @@ struct ConfidenceTrackerView: View {
                     Text("\(n)")
                         .font(.callout.bold())
                         .padding(.vertical, 8)
-                        .frame(width: 32)
+                        .frame(maxWidth: .infinity)   // fits 10 buttons on small screens
                         .background(roundCapsule(selected: Int(score) == n))
                 }
                 .buttonStyle(.plain)
@@ -146,15 +152,18 @@ struct ConfidenceTrackerView: View {
             }
 
             let grouped = groupDailyAverages(for: entries, lastDays: 30)
-            Chart(grouped, id: \.day) { item in
-                LineMark(
-                    x: .value("Day", item.day),
-                    y: .value("Avg", item.avg)
-                )
-                PointMark(
-                    x: .value("Day", item.day),
-                    y: .value("Avg", item.avg)
-                )
+            Chart {
+                ForEach(grouped, id: \.day) { item in
+                    LineMark(
+                        x: .value("Day", item.day),
+                        y: .value("Avg", item.avg)
+                    )
+                    PointMark(
+                        x: .value("Day", item.day),
+                        y: .value("Avg", item.avg)
+                    )
+                }
+                // Drawn once (it used to be repeated for every data point)
                 RuleMark(y: .value("Target", 7))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                     .annotation(position: .leading) { Text("Target 7+").font(.caption2).foregroundStyle(.secondary) }
@@ -209,7 +218,7 @@ struct ConfidenceTrackerView: View {
                             .font(.title3.bold())
                             .frame(width: 36, alignment: .leading)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(entry.date, style: .date) + Text(" · ") + Text(entry.date, style: .time)
+                            (Text(entry.date, style: .date) + Text(" · ") + Text(entry.date, style: .time))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             if let note = entry.note, !note.isEmpty {
@@ -283,8 +292,11 @@ struct ConfidenceTrackerView: View {
 
     private var addQuickButtons: some View {
         Menu {
+            #if DEBUG
+            // Test data only — not shown in the App Store build
             Button { addMockWeek() } label: { Label("Add mock week", systemImage: "calendar.badge.plus") }
-            Button(role: .destructive) { deleteAll() } label: { Label("Delete all", systemImage: "trash") }
+            #endif
+            Button(role: .destructive) { confirmDeleteAll = true } label: { Label("Delete all", systemImage: "trash") }
         } label: {
             Image(systemName: "gearshape")
         }

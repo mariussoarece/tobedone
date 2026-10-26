@@ -15,7 +15,7 @@ struct OtherTasksView: View {
     @State private var showingImporter = false
 
     var body: some View {
-        NavigationStack {
+        Group {
             VStack(alignment: .leading, spacing: 16) {
                             // ✅ Custom large title — not next to the back button
                             Text("Project Tasks")
@@ -198,18 +198,21 @@ struct OtherTasksView: View {
     }
     private func importOtherTasks(from data: Data) {
         do {
-            let package = try JSONDecoder().decode(OtherTaskPackage.self, from: data)
+            // Export writes an ExportPackage ("tasksWithSubtasks"); older files used "othertasks"
+            let dtos: [OtherTaskDTO]
+            if let package = try? JSONDecoder().decode(ExportPackage.self, from: data) {
+                dtos = package.tasksWithSubtasks
+            } else {
+                dtos = try JSONDecoder().decode(OtherTaskPackage.self, from: data).othertasks
+            }
 
             let existing = tasksWithSubtasks
 
             func exists(_ dto: OtherTaskDTO) -> Bool {
-                existing.contains {
-                    $0.title == dto.title &&
-                    $0.id == dto.id
-                }
+                existing.contains { $0.id == dto.id }
             }
 
-            for dto in package.othertasks where !exists(dto) {
+            for dto in dtos where !exists(dto) {
                 let convertedSubtasks = dto.subtasks.map { subDTO in
                     SubtaskModel(
                         id: subDTO.id,

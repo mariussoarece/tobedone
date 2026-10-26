@@ -7,12 +7,16 @@ import SwiftUI
 
 struct WeeklyTimelineView: View {
     @State private var selectedItem: ActivityItem?
-    @State private var showDetails = false
 
     let weekStart: Date
     let allActivities: [ActivityItem]
 
     private let hours = Array(0..<24)
+
+    // One shared scale so hour labels, grid lines and activity boxes line up:
+    // 60 points per hour = 1 point per minute.
+    private let hourHeight: CGFloat = 60
+    private let dayHeaderHeight: CGFloat = 20
 
     var body: some View {
         VStack(spacing: 12) {
@@ -50,13 +54,15 @@ struct WeeklyTimelineView: View {
                         HStack(alignment: .top, spacing: 4) {
 
                             // HOURS COLUMN
-                            VStack(alignment: .trailing, spacing: 20) {
+                            VStack(alignment: .trailing, spacing: 0) {
+                                // Same height as the weekday header above each day column
+                                Color.clear.frame(height: dayHeaderHeight)
                                 ForEach(hours, id: \.self) { hour in
                                     Text(String(format: "%02d:00", hour))
                                         .id(hour)   // ⭐ important
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
-                                        .frame(height: 40, alignment: .top)
+                                        .frame(height: hourHeight, alignment: .top)
                                 }
                             }
                             .padding(.leading, 4)
@@ -76,8 +82,7 @@ struct WeeklyTimelineView: View {
                 }
 
             }
-            .sheet(isPresented: $showDetails) {
-                if let item = selectedItem {
+            .sheet(item: $selectedItem) { item in
                     VStack(spacing: 20) {
                         Text(item.name)
                             .font(.title2)
@@ -86,10 +91,15 @@ struct WeeklyTimelineView: View {
                         Text("Starts at: \(item.date.formatted(date: .omitted, time: .shortened))")
                         Text("Duration: \(item.durationMinutes) minutes")
 
+                        if !item.details.isEmpty {
+                            Text(item.details)
+                                .foregroundStyle(.secondary)
+                        }
+
                         Spacer()
                     }
                     .padding()
-                }
+                    .presentationDetents([.medium])
             }
 
         }
@@ -99,16 +109,17 @@ struct WeeklyTimelineView: View {
     private var hourGrid: some View {
         VStack(spacing: 0) {
             ForEach(hours, id: \.self) { hour in
-                Rectangle()
-                    .fill(hour >= 7 && hour < 18
-                          ? Color.gray.opacity(0.15)
-                          : Color.white)
-
-                // Thin line across the entire hour
-                        Rectangle()
-                            .fill(Color.black.opacity(0.25))
-                            .frame(height: 1)
-                            .offset(y: 0)
+                VStack(spacing: 0) {
+                    // Thin line at the start of each hour
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.2))   // visible in light and dark mode
+                        .frame(height: 1)
+                    Rectangle()
+                        .fill(hour >= 7 && hour < 18
+                              ? Color.gray.opacity(0.15)
+                              : Color(.systemBackground))
+                }
+                .frame(height: hourHeight)
             }
         }
     }
@@ -124,11 +135,12 @@ struct WeeklyTimelineView: View {
         let minute = cal.component(.minute, from: item.date)
         let totalMinutes = hour * 60 + minute
 
-        return CGFloat(totalMinutes) //* (40.0 / 60.0)  // 40px per hour
+        return CGFloat(totalMinutes) * (hourHeight / 60)
     }
 
     private func heightFor(_ item: ActivityItem) -> CGFloat {
-        CGFloat(item.durationMinutes) * (45.0 / 60.0)
+        // Same scale as the grid; a minimum so very short activities stay tappable
+        max(CGFloat(item.durationMinutes), 20) * (hourHeight / 60)
     }
 
     private func colorFor(_ item: ActivityItem) -> Color {
@@ -177,9 +189,9 @@ struct WeeklyTimelineView: View {
 
     private func dayColumn(day: Date, items: [ActivityItem]) -> some View {
         VStack(spacing: 0) {
-            Text(day, format: .dateTime.weekday(.abbreviated))
+            Text(day, format: .dateTime.weekday(.abbreviated).day())
                 .font(.caption)
-                .padding(.bottom, 4)
+                .frame(height: dayHeaderHeight)
 
             ZStack(alignment: .top) {
                 hourGrid
@@ -230,21 +242,23 @@ struct WeeklyTimelineView: View {
                 let offsetY = offsetFor(item)
                 let height = heightFor(item)
 
+                // Size the box before coloring it, so its height matches the duration
                 Text(item.name)
                     .font(.caption)
                     .padding(4)
-                    .frame(width: columnWidth - 4)
-                    .background(Color.green.opacity(0.25))
+                    .frame(width: columnWidth - 4, height: height, alignment: .topLeading)
+                    .background(colorFor(item))
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
                             .stroke(Color.purple, lineWidth: 1)
                     )
                     .cornerRadius(6)
+                    .contentShape(Rectangle())
+                    .onTapGesture { selectedItem = item }
                     .offset(
                         x: (CGFloat(i) - CGFloat(count - 1) / 2) * columnWidth,
                         y: offsetY
                     )
-                    .frame(height: height, alignment: .top)
             }
         }
     }

@@ -23,7 +23,10 @@ extension Calendar {
         var days: [Date] = []
         let start = startOfMonth(for: date)
         let weekday = component(.weekday, from: start) // 1..7
-        let firstGridDay = self.date(byAdding: .day, value: -(weekday - firstWeekday), to: start) ?? start
+        // Days to step back to the first column. The "+ 7) % 7" keeps it from going
+        // forward (which skipped the 1st when the month starts on a Sunday and weeks start on Monday).
+        let leadingDays = (weekday - firstWeekday + 7) % 7
+        let firstGridDay = self.date(byAdding: .day, value: -leadingDays, to: start) ?? start
         for i in 0..<42 { days.append(self.date(byAdding: .day, value: i, to: firstGridDay)!) }
         return days
     }

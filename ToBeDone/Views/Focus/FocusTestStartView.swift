@@ -10,12 +10,12 @@ struct FocusTestStartView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var startTest = false
     @State private var showResults = false
+    @State private var openResultsAfterTest = false
 
     var body: some View {
         VStack(spacing: 24) {
             Text("Focus Test")
                 .font(.largeTitle.bold())
-            .pickerStyle(.segmented)
 
             Button("Start Test") {
                 startTest = true
@@ -24,8 +24,13 @@ struct FocusTestStartView: View {
 
         }
         .padding()
-        .fullScreenCover(isPresented: $startTest) {
-            RedDotFocusTestView(shouldReturnToHome: false, onFinish: { showResults = true }  )
+        .fullScreenCover(isPresented: $startTest, onDismiss: {
+            if openResultsAfterTest {
+                openResultsAfterTest = false
+                showResults = true
+            }
+        }) {
+            RedDotFocusTestView(shouldReturnToHome: false, onFinish: { openResultsAfterTest = true })
         }
         .fullScreenCover(isPresented: $showResults) {
                     ResultsListView()

@@ -13,7 +13,7 @@ struct GroceryTasksView: View {
     @State private var newItemName: String = ""
 
     var body: some View {
-        NavigationStack {
+        Group {
             VStack(alignment: .leading, spacing: 16) {
                             // ✅ Custom large title — not next to the back button
                             Text("Grocery List")
@@ -33,8 +33,9 @@ struct GroceryTasksView: View {
                             }
 
                         Button("Add") {
-                            guard !newItemName.isEmpty else { return }
-                            let item = GroceryItemModel(name: newItemName)
+                            let name = newItemName.trimmingCharacters(in: .whitespaces)
+                            guard !name.isEmpty else { return }
+                            let item = GroceryItemModel(name: name)
                             modelContext.insert(item)
                             newItemName = ""
                         }
@@ -94,7 +95,8 @@ struct GroceryTasksView: View {
                                         to: nil, from: nil, for: nil)
     }
     private func deleteCompletedTasks(at offsets: IndexSet) {
-        let completedTasks = sortedItems()
+        // Only the "Bought Items" list can be swiped, so map offsets to that list
+        let completedTasks = sortedItems().filter { $0.isBought }
         for index in offsets {
             let taskToDelete = completedTasks[index]
             modelContext.delete(taskToDelete)

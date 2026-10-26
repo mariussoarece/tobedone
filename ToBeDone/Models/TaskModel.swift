@@ -21,18 +21,13 @@ class TaskModel: Identifiable {
     var title: String
     var dueDate: Date
     var priority: TaskPriority
-    var isCompleted: Bool = false {
-        didSet {
-            if isCompleted {
-                NotificationManager.shared.cancelNotification(for: self)
-            }
-        }
-    }
+    var isCompleted: Bool = false
 
-    init( title: String, dueDate: Date, priority: TaskPriority) {
+    // Reminders are scheduled/cancelled by the views (add, complete, delete, import),
+    // not here, so creating a task in code never fires an unexpected notification.
+    init(title: String, dueDate: Date, priority: TaskPriority) {
         self.title = title
         self.dueDate = dueDate
         self.priority = priority
-        NotificationManager.shared.scheduleNotification(for: self)
     }
 }

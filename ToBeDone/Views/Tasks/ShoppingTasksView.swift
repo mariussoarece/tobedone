@@ -14,7 +14,7 @@ struct ShoppingTasksView: View {
     @State private var newItemName: String = ""
     @State private var newItemPrice: String = ""
     @State private var selectedPriority: TaskPriority = .medium
-    @AppStorage("selectedCurrency") private var selectedCurrency: String = ""
+    @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     @State private var exportURL: URL?
     @State private var showingImporter = false
     @State private var editingItem: ShoppingItemModel?
@@ -22,7 +22,7 @@ struct ShoppingTasksView: View {
     @State private var showEditPriceSheet = false
 
     var body: some View {
-        NavigationStack {
+        Group {
             VStack(alignment: .leading, spacing: 16) {
                 // ✅ Custom large title — not next to the back button
                 Text("Shopping Tasks")
@@ -44,8 +44,9 @@ struct ShoppingTasksView: View {
                         }
 
                         Button("Add Item") {
-                            if let price = Double(newItemPrice) {
-                                let newItem = ShoppingItemModel(name: newItemName, price: price, currency: selectedCurrency, priority: selectedPriority)
+                            let name = newItemName.trimmingCharacters(in: .whitespaces)
+                            if !name.isEmpty, let price = newItemPrice.decimalValue {
+                                let newItem = ShoppingItemModel(name: name, price: price, currency: selectedCurrency, priority: selectedPriority)
                                 modelContext.insert(newItem)
                                 newItemName = ""
                                 newItemPrice = ""
@@ -182,7 +183,7 @@ struct ShoppingTasksView: View {
                         .cornerRadius(8)
 
                     Button("Confirm") {
-                        if let newPrice = Double(editedPrice) {
+                        if let newPrice = editedPrice.decimalValue {
                             item.price = newPrice
                         }
                         item.completedAt = Date()
@@ -206,6 +207,7 @@ struct ShoppingTasksView: View {
 
     private func toggleCompletion(_ task: ShoppingItemModel) {
         task.isCompleted.toggle()
+        task.completedAt = task.isCompleted ? Date() : nil
         try? modelContext.save()
     }
     private func totalActivePrice() -> Double {
@@ -276,19 +278,21 @@ struct ShoppingTasksView: View {
             }
     private func importShoppingTasks(from data: Data) {
         do {
-            let package = try JSONDecoder().decode(ShoppingTaskPackage.self, from: data)
+            // Export writes an ExportPackage ("shoppingItems"); older files used "shoppingtasks"
+            let dtos: [ShoppingItemDTO]
+            if let package = try? JSONDecoder().decode(ExportPackage.self, from: data) {
+                dtos = package.shoppingItems
+            } else {
+                dtos = try JSONDecoder().decode(ShoppingTaskPackage.self, from: data).shoppingtasks
+            }
 
             let existing = shoppingItems
 
             func exists(_ dto: ShoppingItemDTO) -> Bool {
-                existing.contains {
-                    $0.id == dto.id &&
-                    $0.name == dto.name &&
-                    $0.price == dto.price
-                }
+                existing.contains { $0.id == dto.id }
             }
 
-            for dto in package.shoppingtasks where !exists(dto) {
+            for dto in dtos where !exists(dto) {
                 let priorityEnum = TaskPriority(rawValue: dto.priority) ?? .medium
 
                 let item = ShoppingItemModel(

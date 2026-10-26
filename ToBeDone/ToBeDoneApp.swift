@@ -9,10 +9,22 @@ import UserNotifications
 
 @main
 struct LifeOrderingApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("selectedTheme") private var selectedTheme: String = "Default"
+
     init() {
-            NotificationManager.shared.requestPermission()
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        NotificationManager.shared.requestPermission()
+    }
+
+    /// "Default" follows the system setting; "Light"/"Dark" force a mode.
+    private var colorScheme: ColorScheme? {
+        switch selectedTheme {
+        case "Light": return .light
+        case "Dark": return .dark
+        default: return nil
         }
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             TaskModel.self,
@@ -31,12 +43,20 @@ struct LifeOrderingApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if hasSeenIntroPage {
-                HomeView()
-                    .modelContainer(sharedModelContainer)
-            } else {
-                IntroPage(hasSeenIntroPage: $hasSeenIntroPage)
-                    .modelContainer(sharedModelContainer)
+            Group {
+                if hasSeenIntroPage {
+                    HomeView()
+                } else {
+                    IntroPage(hasSeenIntroPage: $hasSeenIntroPage)
+                }
+            }
+            .modelContainer(sharedModelContainer)
+            .preferredColorScheme(colorScheme)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Keep the daily reminder text up to date each time the app opens
+            if phase == .active {
+                ActivityReminderScheduler.refresh(context: sharedModelContainer.mainContext)
             }
         }
     }
@@ -66,7 +86,7 @@ struct LifeOrderingApp: App {
                     .font(.body)
                     .multilineTextAlignment(.leading)
                     .padding()
-                Text("Let's beggin! How should we call you?")
+                Text("Let's begin! What should we call you?")
                     .font(.headline)
 
                 TextField("Enter your name", text: $userName)

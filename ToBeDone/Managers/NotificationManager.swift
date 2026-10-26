@@ -21,9 +21,12 @@ class NotificationManager {
     }
 
     func scheduleNotification(for task: TaskModel) {
+        // Nothing to remind about for finished tasks or times already in the past
+        guard !task.isCompleted, task.dueDate > Date() else { return }
+
         let content = UNMutableNotificationContent()
         content.title = "Task Reminder"
-        content.body = "Don't forget: \(task.title) is due today!"
+        content.body = "Don't forget: \(task.title) is due now!"
         content.sound = .default
 
         let triggerDate = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: task.dueDate)

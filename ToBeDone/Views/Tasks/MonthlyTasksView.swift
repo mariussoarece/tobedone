@@ -12,12 +12,12 @@ struct MonthlyTasksView: View {
 
     @State private var newTaskTitle: String = ""
     @State private var newTaskPrice: String = ""
-    @AppStorage("selectedCurrency") private var selectedCurrency: String = ""
+    @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     @State private var exportURL: URL?
     @State private var showingImporter = false
 
     var body: some View {
-        NavigationStack {
+        Group {
             VStack(alignment: .leading, spacing: 16) {
                             Text("Monthly Task")
                                 .font(.largeTitle)
@@ -115,9 +115,10 @@ struct MonthlyTasksView: View {
     }
 
     private func addTask() {
-        guard !newTaskTitle.isEmpty else { return }
-        let price = Double(newTaskPrice) ?? 0.0
-        let newTask = MonthlyTaskModel(title: newTaskTitle, price: price)
+        let title = newTaskTitle.trimmingCharacters(in: .whitespaces)
+        guard !title.isEmpty else { return }
+        let price = newTaskPrice.decimalValue ?? 0.0
+        let newTask = MonthlyTaskModel(title: title, price: price)
         modelContext.insert(newTask)
         newTaskTitle = ""
         newTaskPrice = ""
@@ -169,8 +170,8 @@ struct MonthlyTasksView: View {
             let existing = monthlyTasks
 
             func exists(_ dto: MonthlyTaskDTO) -> Bool {
+                // Imported items get a new id, so compare by content to avoid duplicates
                 existing.contains {
-                    $0.id == dto.id &&
                     $0.title == dto.title &&
                     $0.price == dto.price
                 }
