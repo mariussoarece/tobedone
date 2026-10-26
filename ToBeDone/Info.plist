@@ -12,5 +12,7 @@
 	<string>2.0</string>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
+	<key>CFBundleExecutable</key>
+	<string></string>
 </dict>
 </plist>
