@@ -48,6 +48,7 @@ struct ShoppingTasksView: View {
                             if !name.isEmpty, let price = newItemPrice.decimalValue {
                                 let newItem = ShoppingItemModel(name: name, price: price, currency: selectedCurrency, priority: selectedPriority)
                                 modelContext.insert(newItem)
+                                try? modelContext.save()   // save now, don't wait for autosave
                                 newItemName = ""
                                 newItemPrice = ""
                             }

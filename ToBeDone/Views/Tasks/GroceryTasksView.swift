@@ -37,6 +37,7 @@ struct GroceryTasksView: View {
                             guard !name.isEmpty else { return }
                             let item = GroceryItemModel(name: name)
                             modelContext.insert(item)
+                            try? modelContext.save()   // save now, don't wait for autosave
                             newItemName = ""
                         }
                     }

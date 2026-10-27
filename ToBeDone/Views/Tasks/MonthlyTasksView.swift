@@ -120,6 +120,7 @@ struct MonthlyTasksView: View {
         let price = newTaskPrice.decimalValue ?? 0.0
         let newTask = MonthlyTaskModel(title: title, price: price)
         modelContext.insert(newTask)
+        try? modelContext.save()   // save now, don't wait for autosave
         newTaskTitle = ""
         newTaskPrice = ""
     }

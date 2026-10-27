@@ -11,6 +11,9 @@ import UserNotifications
 struct LifeOrderingApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("selectedTheme") private var selectedTheme: String = "Default"
+    @State private var backupToRestore: AppBackup?
+    @State private var showRestorePrompt = false
+    @State private var restoredCount: Int?
 
     init() {
         NotificationManager.shared.requestPermission()
@@ -25,21 +28,8 @@ struct LifeOrderingApp: App {
         }
     }
 
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            TaskModel.self,
-            ShoppingItemModel.self,
-            MonthlyTaskModel.self,
-            OtherTaskModel.self,
-            SubtaskModel.self,
-            GroceryItemModel.self,
-            ConfidenceEntry.self,
-            ActivityItem.self,
-            FocusResult.self,
-        ])
-        let config = ModelConfiguration("default") // same as before
-        return try! ModelContainer(for: schema, configurations: [config])
-    }()
+    // Opened in DataStore: same database file as before, but no crash if it can't be opened
+    var sharedModelContainer: ModelContainer { DataStore.container }
 
     var body: some Scene {
         WindowGroup {
@@ -52,16 +42,52 @@ struct LifeOrderingApp: App {
             }
             .modelContainer(sharedModelContainer)
             .preferredColorScheme(colorScheme)
+            .task { checkForRestore() }
+            .alert("Restore your data?", isPresented: $showRestorePrompt, presenting: backupToRestore) { backup in
+                Button("Restore") {
+                    restoredCount = BackupManager.restore(backup, into: sharedModelContainer.mainContext)
+                }
+                Button("Not now", role: .cancel) {}
+            } message: { backup in
+                Text("The app opened without any data, but a backup from \(backup.createdAt.formatted(date: .abbreviated, time: .shortened)) with \(backup.totalCount) items was found. Restoring only adds items; nothing is deleted.")
+            }
+            .alert("Data restored", isPresented: Binding(
+                get: { restoredCount != nil },
+                set: { if !$0 { restoredCount = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("\(restoredCount ?? 0) items were brought back from the backup.")
+            }
         }
         .onChange(of: scenePhase) { _, phase in
-            // Keep the daily reminder text up to date each time the app opens
-            if phase == .active {
-                ActivityReminderScheduler.refresh(context: sharedModelContainer.mainContext)
+            let context = sharedModelContainer.mainContext
+            switch phase {
+            case .active:
+                // Keep the daily reminder text up to date each time the app opens
+                ActivityReminderScheduler.refresh(context: context)
+                BackupManager.writeBackup(context: context)
+            case .background:
+                // Save and back up whenever the app leaves the screen
+                BackupManager.writeBackup(context: context)
+            default:
+                break
             }
         }
     }
 
     @AppStorage("hasSeenIntroPage") private var hasSeenIntroPage: Bool = false
+
+    /// If the database is empty but a backup with data exists, offer to restore it.
+    @MainActor
+    private func checkForRestore() {
+        let context = sharedModelContainer.mainContext
+        guard BackupManager.databaseIsEmpty(context: context),
+              let backup = BackupManager.readLatestBackup(),
+              backup.totalCount > 0 else { return }
+        backupToRestore = backup
+        showRestorePrompt = true
+    }
 
     struct IntroPage: View {
         @AppStorage("userName") private var userName = ""

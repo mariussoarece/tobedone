@@ -38,6 +38,7 @@ struct OtherTasksView: View {
                             if !newTaskTitle.isEmpty {
                                 let newTask = OtherTaskModel(title: newTaskTitle)
                                 modelContext.insert(newTask)
+                                try? modelContext.save()   // save now, don't wait for autosave
                                 newTaskTitle = ""
                             }
                         }
