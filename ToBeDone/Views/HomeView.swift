@@ -61,11 +61,11 @@ struct HomeView: View {
                 }
 
                 Section {
-                    HomeRow(title: Text("Daily Routine"), icon: "clock.fill", color: .purple,
+                    HomeRow(title: Text("Daily Routine"), icon: "clock.fill", color: .indigo,
                             detail: activitiesLeftToday > 0 ? "\(activitiesLeftToday) left" : nil) { DailyActivitiesView() }
                     HomeRow(title: Text("Confidence"), icon: "heart.fill", color: .pink,
                             detail: confidenceText) { ConfidenceTrackerView() }
-                    HomeRow(title: Text("Focus Test"), icon: "eye.fill", color: .orange,
+                    HomeRow(title: Text("Focus Test"), icon: "eye.fill", color: .blue,
                             detail: focusBestText) { FocusTestView() }
                 } header: {
                     Text("GROW")

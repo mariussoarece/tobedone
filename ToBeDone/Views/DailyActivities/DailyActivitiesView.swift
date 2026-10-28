@@ -35,7 +35,7 @@ struct DailyActivitiesView: View {
             Text("Daily Activities")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .foregroundColor(.purple)        // matches the purple Daily Routine icon
+                .foregroundColor(.indigo)        // violet, like the Daily Routine icon
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
                 .padding(.top)

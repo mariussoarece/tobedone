@@ -29,7 +29,7 @@ struct ConfidenceTrackerView: View {
                 Text("Confidence")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                    .foregroundColor(.purple)       // pick any color you like
+                    .foregroundColor(.red)
                     .padding(.horizontal)
 
                 ScrollView {
