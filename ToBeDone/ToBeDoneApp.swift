@@ -16,7 +16,10 @@ struct LifeOrderingApp: App {
     @State private var restoredCount: Int?
 
     init() {
-        NotificationManager.shared.requestPermission()
+        // No permission pop-up while the screenshot test runs
+        if !DemoData.isEnabled {
+            NotificationManager.shared.requestPermission()
+        }
     }
 
     /// "Default" follows the system setting; "Light"/"Dark" force a mode.
@@ -81,6 +84,7 @@ struct LifeOrderingApp: App {
     /// If the database is empty but a backup with data exists, offer to restore it.
     @MainActor
     private func checkForRestore() {
+        guard !DemoData.isEnabled else { return }
         let context = sharedModelContainer.mainContext
         guard BackupManager.databaseIsEmpty(context: context),
               let backup = BackupManager.readLatestBackup(),

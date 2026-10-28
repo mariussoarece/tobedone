@@ -30,6 +30,14 @@ enum DataStore {
     static let container: ModelContainer = makeContainer()
 
     private static func makeContainer() -> ModelContainer {
+        // Screenshot mode: sample data in memory only, the real database is not opened
+        if DemoData.isEnabled {
+            let memory = ModelConfiguration(isStoredInMemoryOnly: true)
+            let container = try! ModelContainer(for: schema, configurations: [memory])
+            DemoData.seed(into: ModelContext(container))
+            return container
+        }
+
         // Keep the name "default": it is the same database file every earlier version used.
         // Changing the name or location would make the app open an empty database.
         let config = ModelConfiguration("default")

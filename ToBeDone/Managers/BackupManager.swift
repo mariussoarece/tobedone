@@ -127,6 +127,7 @@ enum BackupManager {
     @MainActor
     @discardableResult
     static func writeBackup(context: ModelContext) -> Bool {
+        guard !DemoData.isEnabled else { return false }   // never back up screenshot sample data
         try? context.save()
         let snapshot = makeSnapshot(context: context)
         guard snapshot.totalCount > 0 else { return false }
