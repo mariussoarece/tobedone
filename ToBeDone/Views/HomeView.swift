@@ -81,6 +81,7 @@ struct HomeView: View {
                 .listRowBackground(Color.clear)
             }
             .listStyle(.insetGrouped)
+            .environment(\.defaultMinListRowHeight, 34)   // allows the shorter rows below
             .toolbar(.hidden, for: .navigationBar)   // the greeting replaces the title bar on Home only
             .navigationDestination(isPresented: $showSettings) { SettingsView() }
         }
@@ -232,7 +233,8 @@ private struct HomeRow<Destination: View>: View {
                     Text(detail).foregroundStyle(.secondary)
                 }
             }
-            .padding(.vertical, 2)
         }
+        // About 2 mm less height per row than the iOS default
+        .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
     }
 }
