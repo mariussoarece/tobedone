@@ -32,7 +32,7 @@ struct GroceryTasksView: View {
                                 dismissKeyboard()
                             }
 
-                        Button("Add") {
+                        Button("Add Item") {
                             let name = newItemName.trimmingCharacters(in: .whitespaces)
                             guard !name.isEmpty else { return }
                             let item = GroceryItemModel(name: name)
@@ -41,6 +41,7 @@ struct GroceryTasksView: View {
                             newItemName = ""
                         }
                         .buttonStyle(.borderedProminent)   // blue, like Export
+                        .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
                     // 🔸 Grocery Items Not Bought Yet

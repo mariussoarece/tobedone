@@ -54,6 +54,7 @@ struct ShoppingTasksView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)   // blue, like Export
+                        .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
                     Section(header: Text("Shopping List")) {

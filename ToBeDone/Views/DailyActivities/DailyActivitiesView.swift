@@ -40,10 +40,6 @@ struct DailyActivitiesView: View {
                 .padding(.horizontal)
                 .padding(.top)
 
-            // Blue "Add Activity" button (replaces the "+" in the top bar)
-            addButton
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
 
             // Buttons always below the title
             // Segmented picker shows which view is active
@@ -74,6 +70,10 @@ struct DailyActivitiesView: View {
                 .padding(.horizontal)
 
             } else {
+                // Also available in the weekly view
+                addButton
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal)
 
                 WeeklyTimelineView(weekStart: currentWeekStart, allActivities: allActivities)
             }
@@ -164,8 +164,12 @@ struct DailyActivitiesView: View {
                 }
             }
 
+            // Blue "Add Activity" button under the day's date, on the right
+            addButton
+                .frame(maxWidth: .infinity, alignment: .trailing)
+
             if dayActivities(selectedDate).isEmpty {
-                ContentUnavailableView("No activities", systemImage: "list.bullet", description: Text("Add one using the + button."))
+                ContentUnavailableView("No activities", systemImage: "list.bullet", description: Text("Add one with the Add Activity button."))
             } else {
                 List {
                     ForEach(dayActivities(selectedDate)) { item in

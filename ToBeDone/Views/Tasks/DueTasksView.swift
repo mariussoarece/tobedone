@@ -53,6 +53,7 @@ struct DueTasksView: View {
                                 addTask()
                             }
                             .buttonStyle(.borderedProminent)   // blue, like Export
+                            .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                         }
 
                         // MARK: Due Tasks

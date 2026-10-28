@@ -42,6 +42,7 @@ struct MonthlyTasksView: View {
                             addTask()
                         }
                         .buttonStyle(.borderedProminent)   // blue, like Export
+                        .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
                     Section(header: Text("Monthly Tasks - Swipe to delete")) {
