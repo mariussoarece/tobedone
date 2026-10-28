@@ -42,6 +42,7 @@ struct OtherTasksView: View {
                                 newTaskTitle = ""
                             }
                         }
+                        .buttonStyle(.borderedProminent)   // blue, like Export
                     }
 
                     // 🔸 Active Tasks Section

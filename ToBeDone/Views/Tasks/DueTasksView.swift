@@ -52,6 +52,7 @@ struct DueTasksView: View {
                             Button("Add Task") {
                                 addTask()
                             }
+                            .buttonStyle(.borderedProminent)   // blue, like Export
                         }
 
                         // MARK: Due Tasks

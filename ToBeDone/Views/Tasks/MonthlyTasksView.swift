@@ -41,6 +41,7 @@ struct MonthlyTasksView: View {
                         Button("Add Task") {
                             addTask()
                         }
+                        .buttonStyle(.borderedProminent)   // blue, like Export
                     }
 
                     Section(header: Text("Monthly Tasks - Swipe to delete")) {

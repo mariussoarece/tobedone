@@ -39,6 +39,7 @@ struct SubtaskSectionView: View {
                         localSubtask = ""
                     }
                 }
+                .buttonStyle(.borderedProminent)   // blue, like Export
             }
         } label: {
             Text(task.title)

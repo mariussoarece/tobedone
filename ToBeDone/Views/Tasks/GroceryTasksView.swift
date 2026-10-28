@@ -40,6 +40,7 @@ struct GroceryTasksView: View {
                             try? modelContext.save()   // save now, don't wait for autosave
                             newItemName = ""
                         }
+                        .buttonStyle(.borderedProminent)   // blue, like Export
                     }
 
                     // 🔸 Grocery Items Not Bought Yet

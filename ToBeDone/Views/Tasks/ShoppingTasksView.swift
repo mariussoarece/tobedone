@@ -53,6 +53,7 @@ struct ShoppingTasksView: View {
                                 newItemPrice = ""
                             }
                         }
+                        .buttonStyle(.borderedProminent)   // blue, like Export
                     }
 
                     Section(header: Text("Shopping List")) {

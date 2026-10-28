@@ -33,10 +33,12 @@ struct DailyActivitiesView: View {
 
             // Title always on its own line
             Text("Daily Activities")
-                .font(.title2)
-                .bold()
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .foregroundColor(.blue)          // same style as "To Do Tasks"
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
+                .padding(.top)
 
             // Buttons always below the title
             // Segmented picker shows which view is active

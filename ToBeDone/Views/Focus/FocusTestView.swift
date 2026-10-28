@@ -18,6 +18,15 @@ struct FocusTestView: View {
     private var best: Double? { results.map(\.duration).max() }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+        // Same title style as the other screens, in red like "Shopping Tasks"
+        Text("Focus Test")
+            .font(.largeTitle)
+            .fontWeight(.bold)
+            .foregroundColor(.red)
+            .padding(.horizontal)
+            .padding(.top)
+
         List {
             // Summary + start
             Section {
@@ -93,8 +102,9 @@ struct FocusTestView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Focus Test")
-        .navigationBarTitleDisplayMode(.large)
+        }
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(isPresented: $startTest) {
             RedDotFocusTestView(shouldReturnToHome: false, onFinish: nil)
         }
