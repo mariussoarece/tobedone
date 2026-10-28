@@ -88,7 +88,7 @@ struct DailyActivitiesView: View {
                 }
                 try? modelContext.save()
                 syncConfidenceForDays(affected)
-                ActivityReminderScheduler.refresh(context: modelContext)
+                ReminderScheduler.refresh(context: modelContext)
             }
         }
         .fileImporter(
@@ -168,7 +168,7 @@ struct DailyActivitiesView: View {
                             updated.isCompleted.toggle()
                             try? modelContext.save()
                             syncConfidenceForDay(selectedDate)
-                            ActivityReminderScheduler.refresh(context: modelContext)
+                            ReminderScheduler.refresh(context: modelContext)
                         })
 
                     }
@@ -177,7 +177,7 @@ struct DailyActivitiesView: View {
                         for i in indexSet { modelContext.delete(items[i]) }
                         try? modelContext.save()
                         syncConfidenceForDay(selectedDate)
-                        ActivityReminderScheduler.refresh(context: modelContext)
+                        ReminderScheduler.refresh(context: modelContext)
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -320,7 +320,7 @@ struct DailyActivitiesView: View {
             }
 
             try? modelContext.save()
-            ActivityReminderScheduler.refresh(context: modelContext)
+            ReminderScheduler.refresh(context: modelContext)
         } catch {
             print("Import decode error:", error)
         }

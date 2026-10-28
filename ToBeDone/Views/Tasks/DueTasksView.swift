@@ -164,6 +164,7 @@ struct DueTasksView: View {
         modelContext.insert(newTask)
         try? modelContext.save()
         NotificationManager.shared.scheduleNotification(for: newTask)
+        ReminderScheduler.refresh(context: modelContext)   // update tonight's summary
 
         // Reset UI
         newTaskTitle = ""
@@ -180,6 +181,7 @@ struct DueTasksView: View {
             // Un-completing a task brings its reminder back
             NotificationManager.shared.scheduleNotification(for: task)
         }
+        ReminderScheduler.refresh(context: modelContext)
     }
 
     private func sortedTasks() -> [TaskModel] {
@@ -206,6 +208,7 @@ struct DueTasksView: View {
             modelContext.delete(taskToDelete)
         }
         try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)
     }
     private func exportDueTasks() {
         let dtos = dueTasks.filter { !$0.isCompleted }.map(TaskDTO.init)
@@ -285,6 +288,7 @@ struct DueTasksView: View {
             }
 
             try? modelContext.save()
+            ReminderScheduler.refresh(context: modelContext)
         } catch {
             print("Import decode error:", error)
         }

@@ -2,178 +2,236 @@
 //  HomeView.swift
 //  ToBeDone
 //
+//  Home screen (design "A · Clean iOS"): greeting, Today progress, and the
+//  Plan / Do / Grow sections. Colors are system colors, so dark mode works automatically.
+//
 
 import SwiftUI
+import SwiftData
 
 struct HomeView: View {
     @AppStorage("userName") private var userName: String = ""
-    @State private var showFocusTest = false
-    @State private var startTest = false
-    @State private var showResults = false
-    @State private var openResultsAfterTest = false
+    @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
+    @State private var showSettings = false
+
+    @Query private var tasks: [TaskModel]
+    @Query private var activities: [ActivityItem]
+    @Query private var shoppingItems: [ShoppingItemModel]
+    @Query private var groceryItems: [GroceryItemModel]
+    @Query private var monthlyItems: [MonthlyTaskModel]
+    @Query private var projects: [OtherTaskModel]
+    @Query private var confidenceEntries: [ConfidenceEntry]
+    @Query private var focusResults: [FocusResult]
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-
-                    // MARK: - Greeting header
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Text("Hi, \(userName.isEmpty ? "Friend" : userName)")
-                                .font(.largeTitle.bold())
-                            Image(systemName: "heart.fill")
-                                .foregroundColor(.pink.opacity(0.6))
-                                .font(.title2)
-                        }
-                        Text("The more organized you, the happier you.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-
-                    // MARK: - Handwritten accent (top right)
-
-                    HStack {
-                        Spacer()
-
-                        Image("small_steps_big_changes")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 80)
-                    }
-                    .padding(.horizontal)
-
-                    // MARK: - Blue banner
-                    VStack(spacing: 4) {
-                        Text("Life Ordering App")
-                            .font(.title.bold())
-                            .foregroundColor(.white)
-                        Text("PLAN  ·  DO  ·  GROW")
-                            .font(.caption)
-                            .tracking(2)
-                            .foregroundColor(.white.opacity(0.85))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18)
-                            .fill(Color.blue.opacity(0.85))
-                    )
-                    .padding(.horizontal)
-
-                    // MARK: - Card grid
-                    Grid(horizontalSpacing: 12, verticalSpacing: 12) {
-                        GridRow {
-                            taskCard("To Do List", subtitle: "Get things done",
-                                     icon: "list.clipboard", color: .blue, destination: DueTasksView())
-                            taskCard("Shopping List", subtitle: "Buy what you need",
-                                     icon: "cart.fill", color: .red, destination: ShoppingTasksView())
-                        }
-                        GridRow {
-                            taskCard("Monthly Expenses", subtitle: "Spend with purpose",
-                                     icon: "calendar", color: .orange, destination: MonthlyTasksView())
-                            taskCard("Project Tasks", subtitle: "Work toward goals",
-                                     icon: "target", color: .green, destination: OtherTasksView())
-                        }
-                        GridRow {
-                            taskCard("Grocery List", subtitle: "Healthy choices",
-                                     icon: "basket.fill", color: .yellow, destination: GroceryTasksView())
-                            taskCard("Daily Routine", subtitle: "Plan your time",
-                                     icon: "clock.fill", color: .blue, destination: DailyActivitiesView())
-                        }
-                        GridRow {
-                            taskCard("Confidence Level", subtitle: "Be proud of you",
-                                     icon: "heart.fill", color: .red, destination: ConfidenceTrackerView())
-                            taskCard("Settings", subtitle: "Customize your app",
-                                     icon: "gearshape.fill", color: .gray, destination: SettingsView())
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // MARK: - Focus test buttons (kept from original)
-                    VStack(spacing: 5) {
-                        Button("Start Focus Test") { startTest = true }
-                            .fontWeight(.bold)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 3)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.blue.opacity(0.5)))
-                            .foregroundColor(.white)
-
-                        Button("View Results") { showResults = true }
-                            .fontWeight(.bold)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 3)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.blue.opacity(0.5)))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal)
-
-                    // MARK: - Handwritten footer
-
-                    VStack {
-                        Spacer()
-
-                        Image("you_got_this")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 200)
-                    }
-                    .frame(maxWidth: .infinity)
+            List {
+                // Greeting + Settings
+                Section {
+                    header
                 }
-            }
-            .fullScreenCover(isPresented: $startTest, onDismiss: {
-                // Open results only after the test screen has fully closed;
-                // presenting both at once made the results screen not appear.
-                if openResultsAfterTest {
-                    openResultsAfterTest = false
-                    showResults = true
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+
+                // Today
+                Section {
+                    todayCard
                 }
-            }) {
-                RedDotFocusTestView(shouldReturnToHome: false, onFinish: { openResultsAfterTest = true })
+
+                Section {
+                    HomeRow(title: Text("To Do"), icon: "checklist", color: .blue,
+                            detail: countText(openTasks)) { DueTasksView() }
+                    HomeRow(title: Text("Monthly Expenses"), icon: "calendar", color: .orange,
+                            detail: monthlyText) { MonthlyTasksView() }
+                    HomeRow(title: Text("Projects"), icon: "target", color: .indigo,
+                            detail: countText(projects.filter { !$0.isCompleted }.count)) { OtherTasksView() }
+                } header: {
+                    Text("Plan")
+                }
+
+                Section {
+                    HomeRow(title: Text("Shopping"), icon: "cart.fill", color: .red,
+                            detail: countText(shoppingItems.filter { !$0.isCompleted }.count)) { ShoppingTasksView() }
+                    HomeRow(title: Text("Grocery"), icon: "basket.fill", color: .green,
+                            detail: countText(groceryItems.filter { !$0.isBought }.count)) { GroceryTasksView() }
+                } header: {
+                    Text("Do")
+                }
+
+                Section {
+                    HomeRow(title: Text("Daily Routine"), icon: "clock.fill", color: .teal,
+                            detail: activitiesLeftToday > 0 ? "\(activitiesLeftToday) left" : nil) { DailyActivitiesView() }
+                    HomeRow(title: Text("Confidence"), icon: "heart.fill", color: .pink,
+                            detail: confidenceText) { ConfidenceTrackerView() }
+                    HomeRow(title: focusTitle, icon: "eye.fill", color: .cyan, detail: nil) { FocusTestView() }
+                } header: {
+                    Text("Grow")
+                }
+
+                // Handwritten footer
+                Section {
+                    Image("you_got_this")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 170)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityLabel("You got this!")
+                }
+                .listRowBackground(Color.clear)
             }
-            .fullScreenCover(isPresented: $showResults) {
-                ResultsListView()
-            }
+            .listStyle(.insetGrouped)
+            .toolbar(.hidden, for: .navigationBar)   // the greeting replaces the title bar on Home only
+            .navigationDestination(isPresented: $showSettings) { SettingsView() }
         }
     }
 
-    // MARK: - Card builder
-    @ViewBuilder
-    func taskCard<T: View>(_ title: String, subtitle: String, icon: String, color: Color, destination: T) -> some View {
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)).uppercased())
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Text("Hi, \(userName.isEmpty ? "Friend" : userName)")
+                        .font(.largeTitle.bold())
+                    Image(systemName: "heart.fill")
+                        .font(.title2)
+                        .foregroundStyle(.pink)
+                        .accessibilityHidden(true)
+                }
+            }
+            Spacer()
+            Button {
+                showSettings = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .frame(width: 44, height: 44)
+                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Settings")
+        }
+        .padding(.top, 8)
+    }
+
+    // MARK: - Today card
+
+    private var todayCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Today").font(.headline)
+                Spacer()
+                if todayTotal > 0 {
+                    Text("\(Int((todayProgress * 100).rounded()))%")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.blue)
+                }
+            }
+            if todayTotal > 0 {
+                ProgressView(value: todayProgress)
+                    .tint(.blue)
+                    .accessibilityLabel("Today's progress")
+            } else {
+                Text("Nothing planned for today.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 16) {
+                stat(openTasks, "tasks due")
+                stat(activitiesLeftToday, "activities left")
+                stat(toBuy, "to buy")
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func stat(_ value: Int, _ label: String) -> Text {
+        Text("\(value)").bold().foregroundColor(.primary) + Text(" \(label)")
+    }
+
+    // MARK: - Numbers
+
+    /// Unfinished tasks due today or earlier
+    private var openTasks: Int {
+        let endOfToday = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now)) ?? .now
+        return tasks.filter { !$0.isCompleted && $0.dueDate < endOfToday }.count
+    }
+
+    private var todayTasks: [TaskModel] { tasks.filter { Calendar.current.isDateInToday($0.dueDate) } }
+    private var todayActivities: [ActivityItem] { activities.filter { Calendar.current.isDateInToday($0.date) } }
+
+    private var activitiesLeftToday: Int { todayActivities.filter { !$0.isCompleted }.count }
+
+    /// Today's tasks and activities: how many there are and how many are done
+    private var todayTotal: Int { todayTasks.count + todayActivities.count }
+    private var todayProgress: Double {
+        guard todayTotal > 0 else { return 0 }
+        let done = todayTasks.filter(\.isCompleted).count + todayActivities.filter(\.isCompleted).count
+        return Double(done) / Double(todayTotal)
+    }
+
+    private var toBuy: Int {
+        shoppingItems.filter { !$0.isCompleted }.count + groceryItems.filter { !$0.isBought }.count
+    }
+
+    private var monthlyText: String? {
+        guard !monthlyItems.isEmpty else { return nil }
+        let total = monthlyItems.reduce(0) { $0 + $1.price }
+        return "\(total.formatted(.number.precision(.fractionLength(0...2)))) \(selectedCurrency)"
+    }
+
+    /// Average confidence over the last 7 days
+    private var confidenceText: String? {
+        guard let start = Calendar.current.date(byAdding: .day, value: -7, to: .now) else { return nil }
+        let recent = confidenceEntries.filter { $0.date >= start }
+        guard !recent.isEmpty else { return nil }
+        let avg = Double(recent.reduce(0) { $0 + $1.score }) / Double(recent.count)
+        return String(format: "%.1f", avg)
+    }
+
+    /// "Focus Test · Best 42 s"
+    private var focusTitle: Text {
+        guard let best = focusResults.map(\.duration).max() else { return Text("Focus Test") }
+        return Text("Focus Test") + Text(" · Best \(FocusResult.format(best))").foregroundColor(.secondary)
+    }
+
+    private func countText(_ n: Int) -> String? { n > 0 ? "\(n)" : nil }
+}
+
+// MARK: - Row
+
+/// One row: colored icon tile, title, optional number on the right, chevron.
+private struct HomeRow<Destination: View>: View {
+    let title: Text
+    let icon: String
+    let color: Color
+    let detail: String?
+    @ViewBuilder let destination: () -> Destination
+
+    var body: some View {
         NavigationLink {
-            destination
+            destination()
         } label: {
             HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.7))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: icon)
-                        .foregroundColor(color)
-                        .font(.title3)
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .accessibilityHidden(true)
+                title
+                Spacer()
+                if let detail {
+                    Text(detail).foregroundStyle(.secondary)
                 }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-                Spacer(minLength: 0)
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(color.opacity(0.22))
-            )
+            .padding(.vertical, 2)
         }
-        .buttonStyle(.plain)
     }
 }

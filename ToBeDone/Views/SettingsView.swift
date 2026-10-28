@@ -12,8 +12,11 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("selectedTheme") private var selectedTheme: String = "Default"
     @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
-    @AppStorage("reminderHour") private var reminderHour: Int = 22
-    @AppStorage("reminderMinute") private var reminderMinute: Int = 0
+    @AppStorage(ReminderScheduler.hourKey) private var reminderHour: Int = ReminderScheduler.defaultHour
+    @AppStorage(ReminderScheduler.minuteKey) private var reminderMinute: Int = ReminderScheduler.defaultMinute
+    @AppStorage(ReminderScheduler.summaryEnabledKey) private var dailySummaryEnabled = true
+    @AppStorage(ReminderScheduler.activityStartEnabledKey) private var activityStartEnabled = true
+    @State private var notificationsDenied = false
 
     // Backup & restore
     @State private var lastBackup: AppBackup?
@@ -53,27 +56,46 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    Section(header: Text("Daily Activity Reminder")) {
-                        DatePicker(
-                            "Reminder Time",
-                            selection: Binding(
-                                get: {
-                                    Calendar.current.date(from: DateComponents(
-                                        hour: reminderHour,
-                                        minute: reminderMinute
-                                    )) ?? Date()
-                                },
-                                set: { newValue in
-                                    let comps = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                                    reminderHour = comps.hour ?? 22
-                                    reminderMinute = comps.minute ?? 0
-                                    UserDefaults.standard.set(true, forKey: ActivityReminderScheduler.enabledKey)
-                                    ActivityReminderScheduler.refresh(context: modelContext)
+                    Section {
+                        Toggle("Daily summary", isOn: $dailySummaryEnabled)
+                        if dailySummaryEnabled {
+                            DatePicker(
+                                "Time",
+                                selection: Binding(
+                                    get: {
+                                        Calendar.current.date(from: DateComponents(
+                                            hour: reminderHour,
+                                            minute: reminderMinute
+                                        )) ?? Date()
+                                    },
+                                    set: { newValue in
+                                        let comps = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                                        reminderHour = comps.hour ?? ReminderScheduler.defaultHour
+                                        reminderMinute = comps.minute ?? ReminderScheduler.defaultMinute
+                                        ReminderScheduler.refresh(context: modelContext)
+                                    }
+                                ),
+                                displayedComponents: .hourAndMinute
+                            )
+                        }
+                        Toggle("When an activity starts", isOn: $activityStartEnabled)
+
+                        if notificationsDenied {
+                            Button("Turn On Notifications in iPhone Settings") {
+                                if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                                    UIApplication.shared.open(url)
                                 }
-                            ),
-                            displayedComponents: .hourAndMinute
-                        )
+                            }
+                        }
+                    } header: {
+                        Text("Notifications")
+                    } footer: {
+                        Text(notificationsDenied
+                             ? "Notifications are turned off for ToBeDone. Turn them on, with Lock Screen, Notification Center and Banners, in iPhone Settings."
+                             : "The daily summary lists the tasks and Daily Routine activities you haven't finished. If everything is done, no notification is sent.")
                     }
+                    .onChange(of: dailySummaryEnabled) { ReminderScheduler.refresh(context: modelContext) }
+                    .onChange(of: activityStartEnabled) { ReminderScheduler.refresh(context: modelContext) }
 
                     Section {
                         if let backup = lastBackup {
@@ -106,6 +128,10 @@ struct SettingsView: View {
                     }
                 }
                 .onAppear { lastBackup = BackupManager.readLatestBackup() }
+                .task {
+                    let settings = await UNUserNotificationCenter.current().notificationSettings()
+                    notificationsDenied = settings.authorizationStatus == .denied
+                }
                 .confirmationDialog("Restore from the last backup?", isPresented: $confirmRestore, titleVisibility: .visible) {
                     Button("Restore") {
                         if let backup = BackupManager.readLatestBackup() {

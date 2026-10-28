@@ -16,3 +16,10 @@ class FocusResult {
         self.duration = duration
     }
 }
+
+extension FocusResult {
+    /// "42 s", or "8.4 s" for short times
+    static func format(_ seconds: Double) -> String {
+        seconds < 10 ? String(format: "%.1f s", seconds) : String(format: "%.0f s", seconds)
+    }
+}

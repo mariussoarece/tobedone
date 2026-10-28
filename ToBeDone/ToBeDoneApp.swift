@@ -65,7 +65,7 @@ struct LifeOrderingApp: App {
             switch phase {
             case .active:
                 // Keep the daily reminder text up to date each time the app opens
-                ActivityReminderScheduler.refresh(context: context)
+                ReminderScheduler.refresh(context: context)
                 BackupManager.writeBackup(context: context)
             case .background:
                 // Save and back up whenever the app leaves the screen
