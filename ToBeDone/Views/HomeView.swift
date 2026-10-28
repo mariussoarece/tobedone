@@ -47,6 +47,7 @@ struct HomeView: View {
                             detail: countText(projects.filter { !$0.isCompleted }.count)) { OtherTasksView() }
                 } header: {
                     Text("PLAN")
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))   // title line about 2 mm shorter
                 }
 
                 Section {
@@ -56,6 +57,7 @@ struct HomeView: View {
                             detail: countText(groceryItems.filter { !$0.isBought }.count)) { GroceryTasksView() }
                 } header: {
                     Text("DO")
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))   // title line about 2 mm shorter
                 }
 
                 Section {
@@ -67,6 +69,7 @@ struct HomeView: View {
                             detail: focusBestText) { FocusTestView() }
                 } header: {
                     Text("GROW")
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))   // title line about 2 mm shorter
                 }
 
                 // Handwritten footer
@@ -84,6 +87,7 @@ struct HomeView: View {
                 .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))   // less empty space around it
             }
             .listStyle(.insetGrouped)
+            .listSectionSpacing(.compact)   // smaller gaps between Today, PLAN, DO and GROW
             .environment(\.defaultMinListRowHeight, 34)   // allows the shorter rows below
             .toolbar(.hidden, for: .navigationBar)   // the greeting replaces the title bar on Home only
             .navigationDestination(isPresented: $showSettings) { SettingsView() }
@@ -237,7 +241,7 @@ private struct HomeRow<Destination: View>: View {
                 }
             }
         }
-        // About 1 mm less height per row than the iOS default
-        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+        // Row height: 9 pt above and below the content
+        .listRowInsets(EdgeInsets(top: 9, leading: 16, bottom: 9, trailing: 16))
     }
 }
