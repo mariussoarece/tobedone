@@ -71,14 +71,17 @@ struct HomeView: View {
 
                 // Handwritten footer
                 Section {
+                    // The image's empty border was trimmed, so 152 pt wide
+                    // shows the handwriting at the same size as before
                     Image("you_got_this")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 170)
+                        .frame(width: 152)
                         .frame(maxWidth: .infinity)
                         .accessibilityLabel("You got this!")
                 }
                 .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))   // less empty space around it
             }
             .listStyle(.insetGrouped)
             .environment(\.defaultMinListRowHeight, 34)   // allows the shorter rows below
@@ -234,7 +237,7 @@ private struct HomeRow<Destination: View>: View {
                 }
             }
         }
-        // About 2 mm less height per row than the iOS default
-        .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
+        // About 1 mm less height per row than the iOS default
+        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
     }
 }
