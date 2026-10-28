@@ -113,6 +113,7 @@ struct AddActivitySheet: View {
                         }
                     }
 
+                    .buttonStyle(.borderedProminent)   // blue Save button
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .alert("Activity Overlaps", isPresented: $showingOverlapAlert) {
                         Button("Create Anyway") {

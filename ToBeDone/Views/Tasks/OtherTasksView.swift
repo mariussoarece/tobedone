@@ -34,7 +34,7 @@ struct OtherTasksView: View {
                                 hideKeyboard()
                             }
 
-                        Button("Add Task") {
+                        Button("Add Project") {
                             if !newTaskTitle.isEmpty {
                                 let newTask = OtherTaskModel(title: newTaskTitle)
                                 modelContext.insert(newTask)

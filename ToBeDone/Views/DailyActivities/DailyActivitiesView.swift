@@ -40,6 +40,11 @@ struct DailyActivitiesView: View {
                 .padding(.horizontal)
                 .padding(.top)
 
+            // Blue "Add Activity" button (replaces the "+" in the top bar)
+            addButton
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+
             // Buttons always below the title
             // Segmented picker shows which view is active
             Picker("View", selection: $viewMode) {
@@ -79,7 +84,6 @@ struct DailyActivitiesView: View {
                 currentWeekStart = newWeek
             }
                 }
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { addButton } }
         .sheet(isPresented: $showingAddSheet) {
             AddActivitySheet(defaultDate: selectedDate) { items in
                 let cal = Calendar.current
@@ -144,9 +148,8 @@ struct DailyActivitiesView: View {
     }
 
     private var addButton: some View {
-        Button { showingAddSheet = true } label: {
-            Label("Add", systemImage: "plus.circle.fill").font(.headline)
-        }
+        Button("Add Activity") { showingAddSheet = true }
+            .buttonStyle(.borderedProminent)
     }
 
     // MARK: - List for selected day
