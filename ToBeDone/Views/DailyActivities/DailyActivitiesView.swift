@@ -35,7 +35,7 @@ struct DailyActivitiesView: View {
             Text("Daily Activities")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .foregroundColor(.blue)          // same style as "To Do Tasks"
+                .foregroundColor(.purple)        // matches the purple Daily Routine icon
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
                 .padding(.top)

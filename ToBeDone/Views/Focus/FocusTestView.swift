@@ -19,11 +19,11 @@ struct FocusTestView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-        // Same title style as the other screens, in red like "Shopping Tasks"
+        // Same title style as the other screens, orange like its home icon
         Text("Focus Test")
             .font(.largeTitle)
             .fontWeight(.bold)
-            .foregroundColor(.red)
+            .foregroundColor(.orange)
             .padding(.horizontal)
             .padding(.top)
 

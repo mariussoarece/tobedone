@@ -43,7 +43,7 @@ struct HomeView: View {
                             detail: countText(openTasks)) { DueTasksView() }
                     HomeRow(title: Text("Monthly Expenses"), icon: "calendar", color: .orange,
                             detail: monthlyText) { MonthlyTasksView() }
-                    HomeRow(title: Text("Projects"), icon: "target", color: .indigo,
+                    HomeRow(title: Text("Projects"), icon: "target", color: .green,
                             detail: countText(projects.filter { !$0.isCompleted }.count)) { OtherTasksView() }
                 } header: {
                     Text("PLAN")
@@ -53,7 +53,7 @@ struct HomeView: View {
                 Section {
                     HomeRow(title: Text("Shopping"), icon: "cart.fill", color: .red,
                             detail: countText(shoppingItems.filter { !$0.isCompleted }.count)) { ShoppingTasksView() }
-                    HomeRow(title: Text("Grocery"), icon: "basket.fill", color: .green,
+                    HomeRow(title: Text("Grocery"), icon: "basket.fill", color: .yellow,
                             detail: countText(groceryItems.filter { !$0.isBought }.count)) { GroceryTasksView() }
                 } header: {
                     Text("DO")
@@ -61,11 +61,11 @@ struct HomeView: View {
                 }
 
                 Section {
-                    HomeRow(title: Text("Daily Routine"), icon: "clock.fill", color: .teal,
+                    HomeRow(title: Text("Daily Routine"), icon: "clock.fill", color: .purple,
                             detail: activitiesLeftToday > 0 ? "\(activitiesLeftToday) left" : nil) { DailyActivitiesView() }
                     HomeRow(title: Text("Confidence"), icon: "heart.fill", color: .pink,
                             detail: confidenceText) { ConfidenceTrackerView() }
-                    HomeRow(title: Text("Focus Test"), icon: "eye.fill", color: .cyan,
+                    HomeRow(title: Text("Focus Test"), icon: "eye.fill", color: .orange,
                             detail: focusBestText) { FocusTestView() }
                 } header: {
                     Text("GROW")
