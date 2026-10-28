@@ -28,8 +28,8 @@ struct RedDotFocusTestView: View {
                 .frame(width: 150, height: 150)
 
             VStack {
-                // Live timer as minutes:seconds, e.g. 1:05.32
-                Text(String(format: "%d:%05.2f", Int(timerValue) / 60, timerValue.truncatingRemainder(dividingBy: 60)))
+                // Live timer in seconds only, e.g. 83.42 s
+                Text(String(format: "%.2f s", timerValue))
                     .monospacedDigit()
                     .font(.largeTitle)
                     .foregroundColor(.white)

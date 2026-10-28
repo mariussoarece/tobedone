@@ -46,7 +46,7 @@ struct HomeView: View {
                     HomeRow(title: Text("Projects"), icon: "target", color: .indigo,
                             detail: countText(projects.filter { !$0.isCompleted }.count)) { OtherTasksView() }
                 } header: {
-                    Text("Plan")
+                    Text("PLAN")
                 }
 
                 Section {
@@ -55,7 +55,7 @@ struct HomeView: View {
                     HomeRow(title: Text("Grocery"), icon: "basket.fill", color: .green,
                             detail: countText(groceryItems.filter { !$0.isBought }.count)) { GroceryTasksView() }
                 } header: {
-                    Text("Do")
+                    Text("DO")
                 }
 
                 Section {
@@ -66,7 +66,7 @@ struct HomeView: View {
                     HomeRow(title: Text("Focus Test"), icon: "eye.fill", color: .cyan,
                             detail: focusBestText) { FocusTestView() }
                 } header: {
-                    Text("Grow")
+                    Text("GROW")
                 }
 
                 // Handwritten footer
@@ -199,7 +199,7 @@ struct HomeView: View {
     /// "Best 42 s", shown at the right edge of the Focus Test row
     private var focusBestText: String? {
         guard let best = focusResults.map(\.duration).max() else { return nil }
-        return "Best \(FocusResult.format(best))"
+        return "Best \(FocusResult.formatBest(best))"
     }
 
     private func countText(_ n: Int) -> String? { n > 0 ? "\(n)" : nil }

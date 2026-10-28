@@ -22,7 +22,7 @@ struct FocusTestView: View {
             // Summary + start
             Section {
                 HStack(spacing: 0) {
-                    stat("Best", best.map(FocusResult.format) ?? "–")
+                    stat("Best", best.map(FocusResult.formatBest) ?? "–")
                     Divider()
                     stat("Last", results.first.map { FocusResult.format($0.duration) } ?? "–")
                     Divider()
