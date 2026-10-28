@@ -18,8 +18,13 @@ class FocusResult {
 }
 
 extension FocusResult {
-    /// "42 s", or "8.4 s" for short times
+    /// Minutes and seconds: "1 min 05 s", or "42 s" under a minute
     static func format(_ seconds: Double) -> String {
-        seconds < 10 ? String(format: "%.1f s", seconds) : String(format: "%.0f s", seconds)
+        let total = Int(seconds.rounded())
+        let minutes = total / 60
+        let secs = total % 60
+        return minutes > 0
+            ? String(format: "%d min %02d s", minutes, secs)
+            : "\(secs) s"
     }
 }

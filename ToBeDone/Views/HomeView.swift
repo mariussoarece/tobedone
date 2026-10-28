@@ -63,7 +63,8 @@ struct HomeView: View {
                             detail: activitiesLeftToday > 0 ? "\(activitiesLeftToday) left" : nil) { DailyActivitiesView() }
                     HomeRow(title: Text("Confidence"), icon: "heart.fill", color: .pink,
                             detail: confidenceText) { ConfidenceTrackerView() }
-                    HomeRow(title: focusTitle, icon: "eye.fill", color: .cyan, detail: nil) { FocusTestView() }
+                    HomeRow(title: Text("Focus Test"), icon: "eye.fill", color: .cyan,
+                            detail: focusBestText) { FocusTestView() }
                 } header: {
                     Text("Grow")
                 }
@@ -195,10 +196,10 @@ struct HomeView: View {
         return String(format: "%.1f", avg)
     }
 
-    /// "Focus Test · Best 42 s"
-    private var focusTitle: Text {
-        guard let best = focusResults.map(\.duration).max() else { return Text("Focus Test") }
-        return Text("Focus Test") + Text(" · Best \(FocusResult.format(best))").foregroundColor(.secondary)
+    /// "Best 42 s", shown at the right edge of the Focus Test row
+    private var focusBestText: String? {
+        guard let best = focusResults.map(\.duration).max() else { return nil }
+        return "Best \(FocusResult.format(best))"
     }
 
     private func countText(_ n: Int) -> String? { n > 0 ? "\(n)" : nil }

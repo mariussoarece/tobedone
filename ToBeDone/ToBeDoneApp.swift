@@ -96,6 +96,8 @@ struct LifeOrderingApp: App {
         @State private var showExplanation = false
 
         var body: some View {
+            // Scrolls on small iPhones so the handwriting at the bottom always fits
+            ScrollView {
             VStack(spacing: 24) {
                 Text("Caveat")
                     .font(.largeTitle)
@@ -128,8 +130,18 @@ struct LifeOrderingApp: App {
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.top, 20)
+
+                // Handwritten "Small Steps, Big Changes" with its heart, unchanged
+                Image("small_steps_big_changes")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 150)
+                    .padding(.top, 8)
+                    .accessibilityLabel("Small steps, big changes")
             }
             .padding()
+            }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 
