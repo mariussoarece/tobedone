@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ToBeDone – Plan, do and grow every day</title>
+<title data-i18n="t">ToBeDone – Plan, do and grow every day</title>
 <meta name="description" content="ToBeDone brings your to-dos, shopping and grocery lists, monthly expenses, projects, daily routine, confidence tracking and a focus test together in one simple iPhone app.">
 <link rel="icon" href="images/icon.png">
 <style>
@@ -23,14 +23,19 @@
   .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
   .brand img { width: 64px; height: 64px; border-radius: 15px; }
   .brand span { font-weight: 700; font-size: 22px; }
-  h1 { font-size: clamp(36px, 5vw, 54px); line-height: 1.08; letter-spacing: -0.02em; margin: 0 0 16px; }
+  .topbar { display: flex; justify-content: flex-end; padding-top: 18px; }
+  .lang { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--sub); }
+  .lang select { font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-height: 40px; }
+  .applang { font-size: 14px; color: var(--sub); margin-top: 4px; }
+  [hidden] { display: none !important; }
+  h1 { word-break: auto-phrase; font-size: clamp(36px, 5vw, 54px); line-height: 1.08; letter-spacing: -0.02em; margin: 0 0 16px; }
   .lead { font-size: 19px; color: var(--sub); margin: 0 0 28px; max-width: 520px; }
   .cta { display: inline-block; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; padding: 14px 26px; border-radius: 14px; }
   .note { font-size: 14px; color: var(--sub); margin-top: 12px; }
   .hand { width: 150px; margin-top: 28px; display: block; }
 
   /* Phone mockup of the real home screen */
-  .phone { width: 300px; margin: 0 auto; background: var(--bg); border: 10px solid #1C1C1E; border-radius: 44px; padding: 26px 12px 18px; box-shadow: 0 30px 60px rgba(0,0,0,0.18); }
+  .phone { direction: ltr; width: 300px; margin: 0 auto; background: var(--bg); border: 10px solid #1C1C1E; border-radius: 44px; padding: 26px 12px 18px; box-shadow: 0 30px 60px rgba(0,0,0,0.18); }
   .ph-date { font-size: 10px; font-weight: 600; color: var(--sub); letter-spacing: 0.04em; padding: 0 6px; }
   .ph-hi { font-size: 22px; font-weight: 700; padding: 0 6px 10px; }
   .ph-hi b { color: #FF375F; }
@@ -52,7 +57,7 @@
   .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
   .feat { background: var(--card); border-radius: 18px; padding: 22px; }
   .feat h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: 0.08em; color: var(--sub); }
-  .feat ul { margin: 0; padding-left: 18px; }
+  .feat ul { margin: 0; padding-inline-start: 18px; }
   .feat li { margin: 6px 0; }
   .band { background: var(--card); border-radius: 22px; padding: 32px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
   .band h3 { margin: 0 0 6px; font-size: 18px; }
@@ -69,14 +74,21 @@
 <body>
 <div class="wrap">
 
+  <div class="topbar">
+    <label class="lang"><span data-i18n="lang">Language</span>
+      <select id="lang-select" aria-label="Language"></select>
+    </label>
+  </div>
+
   <header class="hero">
     <div>
       <div class="brand"><img src="images/icon.png" alt=""><span>ToBeDone</span></div>
-      <h1>Plan it. Do it.<br>Grow from it.</h1>
-      <p class="lead">Your to-dos, shopping and grocery lists, monthly expenses, projects and daily routine in one calm iPhone app, with a gentle reminder each evening for whatever is left.</p>
+      <h1 data-i18n="h1">Plan it. Do it.<br>Grow from it.</h1>
+      <p class="lead" data-i18n="lead">Your to-dos, shopping and grocery lists, monthly expenses, projects and daily routine in one calm iPhone app, with a gentle reminder each evening for whatever is left.</p>
       <!-- Country-neutral App Store link: opens the visitor's own App Store -->
-      <a class="cta" href="https://apps.apple.com/app/id6744533316" target="_blank" rel="noopener">Get it on the App Store</a>
-      <p class="note">For iPhone and iPad. No account, no ads, no tracking.</p>
+      <a class="cta" href="https://apps.apple.com/app/id6744533316" target="_blank" rel="noopener" data-i18n="cta">Get it on the App Store</a>
+      <p class="note" data-i18n="note">For iPhone and iPad. No account, no ads, no tracking.</p>
+      <p class="applang" data-i18n="appLang" hidden>The app itself is in English.</p>
       <img class="hand" src="images/small_steps_big_changes.png" alt="Small steps, big changes (handwritten)">
     </div>
 
@@ -109,30 +121,30 @@
   </header>
 
   <section>
-    <h2>Everything in one place</h2>
-    <p class="sec-lead">Three simple sections, so you always know where things go.</p>
+    <h2 data-i18n="s1">Everything in one place</h2>
+    <p class="sec-lead" data-i18n="s1l">Three simple sections, so you always know where things go.</p>
     <div class="grid">
       <div class="feat">
         <h3>PLAN</h3>
         <ul>
-          <li><b>To Do</b> with due date, time, priority and a reminder</li>
-          <li><b>Monthly Expenses</b> with a running total in your currency</li>
-          <li><b>Projects</b> split into subtasks you tick off</li>
+          <li data-i18n="p1"><b>To Do</b> with due date, time, priority and a reminder</li>
+          <li data-i18n="p2"><b>Monthly Expenses</b> with a running total in your currency</li>
+          <li data-i18n="p3"><b>Projects</b> split into subtasks you tick off</li>
         </ul>
       </div>
       <div class="feat">
         <h3>DO</h3>
         <ul>
-          <li><b>Shopping</b> with prices and the total still to buy</li>
-          <li><b>Grocery</b> list you tick off in the store</li>
+          <li data-i18n="d1"><b>Shopping</b> with prices and the total still to buy</li>
+          <li data-i18n="d2"><b>Grocery</b> list you tick off in the store</li>
         </ul>
       </div>
       <div class="feat">
         <h3>GROW</h3>
         <ul>
-          <li><b>Daily Routine</b> on a monthly calendar or weekly timeline</li>
-          <li><b>Confidence</b> check-ins with your 30-day trend</li>
-          <li><b>Focus Test</b> to train your attention span</li>
+          <li data-i18n="g1"><b>Daily Routine</b> on a monthly calendar or weekly timeline</li>
+          <li data-i18n="g2"><b>Confidence</b> check-ins with your 30-day trend</li>
+          <li data-i18n="g3"><b>Focus Test</b> to train your attention span</li>
         </ul>
       </div>
     </div>
@@ -141,25 +153,26 @@
   <section>
     <div class="band">
       <div>
-        <h3>A nudge every evening</h3>
-        <p>At the time you choose, ToBeDone lists what's still open. Finished everything? It stays quiet.</p>
+        <h3 data-i18n="b1t">A nudge every evening</h3>
+        <p data-i18n="b1p">At the time you choose, ToBeDone lists what's still open. Finished everything? It stays quiet.</p>
       </div>
       <div>
-        <h3>On time, every time</h3>
-        <p>Get a notification when each Daily Routine activity starts and when a task is due.</p>
+        <h3 data-i18n="b2t">On time, every time</h3>
+        <p data-i18n="b2p">Get a notification when each Daily Routine activity starts and when a task is due.</p>
       </div>
       <div>
-        <h3>Private by design</h3>
-        <p>Your data stays on your iPhone, backed up automatically. No account, no ads, no tracking.</p>
+        <h3 data-i18n="b3t">Private by design</h3>
+        <p data-i18n="b3p">Your data stays on your iPhone, backed up automatically. No account, no ads, no tracking.</p>
       </div>
     </div>
   </section>
 
   <footer>
     <img src="images/you_got_this.png" alt="You got this! (handwritten)">
-    <span>© 2026 Marius Soarece · <a href="https://apps.apple.com/app/id6744533316" target="_blank" rel="noopener">App Store</a> · <a href="index.html">Support</a> · <a href="privacy.html">Privacy Policy</a></span>
+    <span>© 2026 Marius Soarece · <a href="https://apps.apple.com/app/id6744533316" target="_blank" rel="noopener">App Store</a> · <a href="index.html" data-i18n="support">Support</a> · <a href="privacy.html" data-i18n="privacy">Privacy Policy</a></span>
   </footer>
 
 </div>
+<script src="i18n.js"></script>
 </body>
 </html>
