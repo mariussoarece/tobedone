@@ -4,12 +4,19 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct WeeklyTimelineView: View {
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     @State private var selectedItem: ActivityItem?
+    @State private var selectedMarker: AgendaItem?
 
     let weekStart: Date
     let allActivities: [ActivityItem]
+    /// To Do tasks and Monthly Expenses, drawn as a thin line at their time
+    var tasks: [TaskModel] = []
+    var monthlyTasks: [MonthlyTaskModel] = []
 
     private let hours = Array(0..<24)
 
@@ -100,6 +107,9 @@ struct WeeklyTimelineView: View {
                     }
                     .padding()
                     .presentationDetents([.medium])
+            }
+            .sheet(item: $selectedMarker) { marker in
+                markerSheet(marker)
             }
 
         }
@@ -196,6 +206,7 @@ struct WeeklyTimelineView: View {
             ZStack(alignment: .top) {
                 hourGrid
                 renderOverlapping(items)
+                markersFor(day)
             }
         }
         .frame(width: 120)
@@ -263,4 +274,85 @@ struct WeeklyTimelineView: View {
         }
     }
 
+    // MARK: - To Do and Monthly Expense lines
+
+    private func markers(on day: Date) -> [AgendaItem] {
+        Agenda.forDay(day, tasks: tasks, monthly: monthlyTasks, activities: [])
+    }
+
+    /// A thin coloured line at the exact time, with the title written just above it
+    /// (blue = To Do, orange = Monthly Expense). Tap it for details.
+    private func markersFor(_ day: Date) -> some View {
+        ForEach(markers(on: day)) { m in
+            let y = minutesOfDay(m.start) * (hourHeight / 60)
+            let color = m.kind.color.opacity(m.done ? 0.4 : 1)
+            ZStack(alignment: .topLeading) {
+                Rectangle()
+                    .fill(color)
+                    .frame(height: 2)
+                    .offset(y: 14)
+                Text((m.done ? "✓ " : "") + m.title)
+                    .font(.system(size: 10, weight: .semibold))
+                    .strikethrough(m.done)
+                    .foregroundStyle(m.done ? Color.secondary : m.kind.color)
+                    .lineLimit(1)
+                    .padding(.horizontal, 3)
+                    .background(Color(.systemBackground).opacity(0.85),
+                                in: RoundedRectangle(cornerRadius: 3))
+                    .padding(.leading, 2)
+            }
+            .frame(width: 116, height: 16, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .onTapGesture { selectedMarker = m }
+            .offset(y: max(y - 14, 0))
+        }
+    }
+
+    private func minutesOfDay(_ date: Date) -> CGFloat {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return CGFloat((c.hour ?? 0) * 60 + (c.minute ?? 0))
+    }
+
+    @ViewBuilder
+    private func markerSheet(_ m: AgendaItem) -> some View {
+        VStack(spacing: 16) {
+            Text(m.title)
+                .font(.title2)
+                .bold()
+            switch m.kind {
+            case .task:
+                if let task = tasks.first(where: { $0.id == m.modelID }) {
+                    Text("To Do · due \(task.dueDate.formatted(date: .abbreviated, time: .shortened))")
+                    Text("Priority: \(task.priority.rawValue)")
+                        .foregroundStyle(.secondary)
+                    Button(task.isCompleted ? "Mark as not done" : "Mark as done") {
+                        task.isCompleted.toggle()
+                        try? modelContext.save()
+                        if task.isCompleted {
+                            NotificationManager.shared.cancelNotification(for: task)
+                        } else {
+                            NotificationManager.shared.scheduleNotification(for: task)
+                        }
+                        ReminderScheduler.refresh(context: modelContext)
+                        selectedMarker = nil
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            case .monthly:
+                if let monthly = monthlyTasks.first(where: { $0.id == m.modelID }) {
+                    Text("Monthly expense · \(monthly.scheduleText ?? "")")
+                        .multilineTextAlignment(.center)
+                    if monthly.price > 0 {
+                        Text("\(monthly.price, specifier: "%.2f") \(selectedCurrency)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            case .activity:
+                EmptyView()
+            }
+            Spacer()
+        }
+        .padding()
+        .presentationDetents([.medium])
+    }
 }

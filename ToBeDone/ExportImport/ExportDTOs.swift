@@ -13,6 +13,7 @@ struct TaskDTO: Codable, Identifiable {
     var dueDate: Date
     var priority: String
     var isCompleted: Bool
+    var reminderMinutes: Int? = nil   // optional: older export files don't have it
 }
 
 struct ShoppingItemDTO: Codable, Identifiable {
@@ -28,6 +29,10 @@ struct MonthlyTaskDTO: Codable, Identifiable {
     var id: UUID
     var title: String
     var price: Double
+    // Optional, so files exported by older versions still import
+    var dayOfMonth: Int? = nil
+    var hour: Int? = nil
+    var minute: Int? = nil
 }
 
 struct SubtaskDTO: Codable, Identifiable {
@@ -53,6 +58,7 @@ struct ActivityDTO: Codable, Identifiable {
     var seriesId: UUID?
     var repeatsWeekly: Bool
     var repeatWeeks: Int
+    var reminderMinutes: Int? = nil   // optional: older export files don't have it
 }
 
 struct ExportPackage: Codable {
@@ -72,6 +78,7 @@ extension TaskDTO {
         self.dueDate = model.dueDate
         self.priority = model.priority.rawValue
         self.isCompleted = model.isCompleted
+        self.reminderMinutes = model.reminderMinutes
     }
 }
 
@@ -91,6 +98,9 @@ extension MonthlyTaskDTO {
         self.id = model.id
         self.title = model.title
         self.price = model.price
+        self.dayOfMonth = model.dayOfMonth
+        self.hour = model.hour
+        self.minute = model.minute
     }
 }
 
@@ -116,6 +126,7 @@ extension ActivityDTO {
         self.seriesId = model.seriesId
         self.repeatsWeekly = model.repeatsWeekly
         self.repeatWeeks = model.repeatWeeks
+        self.reminderMinutes = model.reminderMinutes
     }
 }
 

@@ -18,14 +18,23 @@ struct DailyActivitiesView: View {
     // Also allow writing a derived daily confidence into ConfidenceEntry (from your existing tracker)
     @Query(sort: \ConfidenceEntry.date, order: .reverse) private var confidenceEntries: [ConfidenceEntry]
 
+    // Shown as lines in the weekly view
+    @Query private var tasks: [TaskModel]
+    @Query private var monthlyTasks: [MonthlyTaskModel]
+
     @State private var monthAnchor: Date = Calendar.current.startOfMonth(for: .now)
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: .now)
 
     @State private var showingAddSheet = false
     @State private var exportURL: URL?
     @State private var showingImporter = false
-    @State private var viewMode: ViewMode = .monthly
+    @State private var viewMode: ViewMode
     enum ViewMode { case monthly, weekly }
+
+    /// `startWeekly`: open on the Weekly view (the "Weekly view" button on Home)
+    init(startWeekly: Bool = false) {
+        _viewMode = State(initialValue: startWeekly ? .weekly : .monthly)
+    }
     @State private var currentWeekStart: Date = Calendar.current.startOfWeek(for: .now)
 
     var body: some View {
@@ -75,7 +84,8 @@ struct DailyActivitiesView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .padding(.horizontal)
 
-                WeeklyTimelineView(weekStart: currentWeekStart, allActivities: allActivities)
+                WeeklyTimelineView(weekStart: currentWeekStart, allActivities: allActivities,
+                                   tasks: tasks, monthlyTasks: monthlyTasks)
             }
 
         }
@@ -325,6 +335,7 @@ struct DailyActivitiesView: View {
                     repeatsWeekly: dto.repeatsWeekly,
                     repeatWeeks: dto.repeatWeeks
                 )
+                item.reminderMinutes = dto.reminderMinutes
                 modelContext.insert(item)
             }
 

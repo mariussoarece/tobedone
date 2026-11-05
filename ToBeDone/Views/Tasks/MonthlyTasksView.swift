@@ -12,6 +12,9 @@ struct MonthlyTasksView: View {
 
     @State private var newTaskTitle: String = ""
     @State private var newTaskPrice: String = ""
+    @State private var newDay: Int = min(Calendar.current.component(.day, from: .now), 28)
+    @State private var newTime: Date = MonthlyTasksView.tenOClock
+    @State private var editing: MonthlyTaskModel?
     @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     @State private var exportURL: URL?
     @State private var showingImporter = false
@@ -38,6 +41,13 @@ struct MonthlyTasksView: View {
                                 hideKeyboard()
                             }
 
+                        // Only 1–28, so the day exists in every month
+                        Picker("Day of month", selection: $newDay) {
+                            ForEach(1...28, id: \.self) { Text("\($0)").tag($0) }
+                        }
+
+                        DatePicker("Time", selection: $newTime, displayedComponents: .hourAndMinute)
+
                         Button("Add Task") {
                             addTask()
                         }
@@ -45,14 +55,22 @@ struct MonthlyTasksView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
-                    Section(header: Text("Monthly Tasks - Swipe to delete")) {
-                        ForEach(monthlyTasks, id: \.id) { task in
+                    Section(header: Text("Monthly Tasks - Tap to edit, swipe to delete")) {
+                        ForEach(sortedTasks, id: \.id) { task in
                             HStack {
-                                Text(task.title)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(task.title)
+                                    // "Every month on day 5 at 10:00"
+                                    Text(task.scheduleText ?? "No day set – tap to choose one")
+                                        .font(.caption)
+                                        .foregroundStyle(task.dayOfMonth == nil ? Color.orange : Color.secondary)
+                                }
                                 Spacer()
                                 Text("\(task.price, specifier: "%.2f") \(selectedCurrency)")
                                     .foregroundColor(.secondary)
                             }
+                            .contentShape(Rectangle())
+                            .onTapGesture { editing = task }
                         }
                         .onDelete(perform: deleteTask)
                     }
@@ -110,6 +128,12 @@ struct MonthlyTasksView: View {
                         print("Importer error:", error)
                     }
                 }
+            .sheet(item: $editing) { task in
+                EditMonthlyTaskSheet(task: task) {
+                    try? modelContext.save()
+                    ReminderScheduler.refresh(context: modelContext)
+                }
+            }
             .navigationBarTitleDisplayMode(.inline) // optional
             .navigationTitle("")
             }
@@ -120,19 +144,38 @@ struct MonthlyTasksView: View {
         let title = newTaskTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
         let price = newTaskPrice.decimalValue ?? 0.0
-        let newTask = MonthlyTaskModel(title: title, price: price)
+        let time = Calendar.current.dateComponents([.hour, .minute], from: newTime)
+        let newTask = MonthlyTaskModel(title: title, price: price, dayOfMonth: newDay,
+                                       hour: time.hour ?? 10, minute: time.minute ?? 0)
         modelContext.insert(newTask)
         try? modelContext.save()   // save now, don't wait for autosave
+        ReminderScheduler.refresh(context: modelContext)   // monthly reminder
         newTaskTitle = ""
         newTaskPrice = ""
+        newTime = Self.tenOClock
+    }
+
+    /// Default time for a new monthly expense: 10:00
+    static var tenOClock: Date {
+        Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: .now) ?? .now
+    }
+
+    /// By day of the month, then time; items without a day at the end
+    private var sortedTasks: [MonthlyTaskModel] {
+        monthlyTasks.sorted {
+            let a = ($0.dayOfMonth ?? 99, $0.hour * 60 + $0.minute)
+            let b = ($1.dayOfMonth ?? 99, $1.hour * 60 + $1.minute)
+            return a < b
+        }
     }
 
     private func deleteTask(at offsets: IndexSet) {
+        let sorted = sortedTasks
         for index in offsets {
-            let task = monthlyTasks[index]
-            modelContext.delete(task)
+            modelContext.delete(sorted[index])
         }
         try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)
     }
 
     private func totalPrice() -> Double {
@@ -184,11 +227,15 @@ struct MonthlyTasksView: View {
                 let item = MonthlyTaskModel(
                     title: dto.title,
                     price: dto.price,
+                    dayOfMonth: dto.dayOfMonth,
+                    hour: dto.hour ?? 10,
+                    minute: dto.minute ?? 0
                 )
                 modelContext.insert(item)
             }
 
             try? modelContext.save()
+            ReminderScheduler.refresh(context: modelContext)
         } catch {
             print("Import decode error:", error)
         }
@@ -215,5 +262,74 @@ struct MonthlyTasksView: View {
         }
 
         topVC.present(activityVC, animated: true)
+    }
+}
+
+// MARK: - Edit sheet
+
+/// Change the title, price, day of the month and time of a monthly expense.
+struct EditMonthlyTaskSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
+    let task: MonthlyTaskModel
+    var onSave: () -> Void
+
+    @State private var title: String
+    @State private var price: String
+    @State private var day: Int
+    @State private var time: Date
+
+    init(task: MonthlyTaskModel, onSave: @escaping () -> Void) {
+        self.task = task
+        self.onSave = onSave
+        _title = State(initialValue: task.title)
+        _price = State(initialValue: task.price == 0 ? "" : task.price.formatted(.number.precision(.fractionLength(0...2)).grouping(.never)))
+        _day = State(initialValue: task.dayOfMonth ?? min(Calendar.current.component(.day, from: .now), 28))
+        _time = State(initialValue: Calendar.current.date(bySettingHour: task.hour, minute: task.minute,
+                                                          second: 0, of: .now) ?? .now)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Monthly expense") {
+                    TextField("Task Title", text: $title)
+                    HStack {
+                        TextField("Price", text: $price)
+                            .keyboardType(.decimalPad)
+                        Text(selectedCurrency).foregroundStyle(.secondary)
+                    }
+                }
+                Section {
+                    Picker("Day of month", selection: $day) {
+                        ForEach(1...28, id: \.self) { Text("\($0)").tag($0) }
+                    }
+                    DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute)
+                } footer: {
+                    Text("You get a reminder every month on this day and time. Days 29–31 aren't offered because not every month has them.")
+                }
+            }
+            .navigationTitle("Edit")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let trimmed = title.trimmingCharacters(in: .whitespaces)
+                        guard !trimmed.isEmpty else { return }
+                        let t = Calendar.current.dateComponents([.hour, .minute], from: time)
+                        task.title = trimmed
+                        task.price = price.decimalValue ?? 0
+                        task.dayOfMonth = day
+                        task.timeOfDayMinutes = (t.hour ?? 10) * 60 + (t.minute ?? 0)
+                        onSave()
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }

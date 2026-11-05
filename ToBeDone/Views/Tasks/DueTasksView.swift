@@ -13,6 +13,8 @@ struct DueTasksView: View {
     @State private var newTaskTitle: String = ""
     @State private var dueDate: Date = Date()
     @State private var selectedPriority: TaskPriority = .medium
+    @State private var remindBefore = false
+    @State private var remindMinutes = 30
     @State private var exportURL: URL?
     @State private var showingImporter = false
     @State private var showingShareSheet = false
@@ -48,6 +50,9 @@ struct DueTasksView: View {
                                     Text(priority.rawValue.capitalized)
                                 }
                             }
+
+                            // Optional early reminder: "… is starting in 2 days and 30 min"
+                            ReminderBeforeRows(isOn: $remindBefore, minutesBefore: $remindMinutes, start: dueDate)
 
                             Button("Add Task") {
                                 addTask()
@@ -135,6 +140,10 @@ struct DueTasksView: View {
                 Text("Due: \(formattedDate(task.dueDate))")
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                if !task.isCompleted {
+                    ReminderBadge(minutes: task.reminderMinutes)
+                }
             }
 
             Spacer()
@@ -162,6 +171,9 @@ struct DueTasksView: View {
             dueDate: normalized,
             priority: selectedPriority
         )
+        if remindBefore && remindMinutes > 0 {
+            newTask.reminderMinutes = remindMinutes
+        }
 
         modelContext.insert(newTask)
         try? modelContext.save()
@@ -172,6 +184,8 @@ struct DueTasksView: View {
         newTaskTitle = ""
         dueDate = Date()
         selectedPriority = .medium
+        remindBefore = false
+        remindMinutes = 30
     }
 
     private func toggleCompletion(_ task: TaskModel) {
@@ -284,6 +298,7 @@ struct DueTasksView: View {
                 )
 
                 item.isCompleted = dto.isCompleted
+                item.reminderMinutes = dto.reminderMinutes
 
                 modelContext.insert(item)
                 NotificationManager.shared.scheduleNotification(for: item)

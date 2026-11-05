@@ -9,11 +9,13 @@ import SwiftUI
 
 extension TaskModel {
     static func fromDTO(_ dto: TaskDTO) -> TaskModel {
-        TaskModel(
+        let task = TaskModel(
             title: dto.title,
             dueDate: dto.dueDate,
             priority: TaskPriority(rawValue: dto.priority) ?? .medium
         )
+        task.reminderMinutes = dto.reminderMinutes
+        return task
     }
 }
 
@@ -32,6 +34,7 @@ extension ShoppingItemModel {
 
 extension MonthlyTaskModel {
     static func fromDTO(_ dto: MonthlyTaskDTO) -> MonthlyTaskModel {
-        MonthlyTaskModel(title: dto.title, price: dto.price)
+        MonthlyTaskModel(title: dto.title, price: dto.price, dayOfMonth: dto.dayOfMonth,
+                         hour: dto.hour ?? 10, minute: dto.minute ?? 0)
     }
 }

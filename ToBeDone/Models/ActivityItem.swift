@@ -18,6 +18,8 @@ final class ActivityItem {
     var details: String
     var durationMinutes: Int
     var isCompleted: Bool = false
+    /// Optional early reminder this many minutes before the start (nil = none)
+    var reminderMinutes: Int? = nil
 
     init(
         date: Date = .now,

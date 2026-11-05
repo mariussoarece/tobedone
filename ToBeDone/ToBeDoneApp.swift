@@ -14,6 +14,8 @@ struct LifeOrderingApp: App {
     @State private var backupToRestore: AppBackup?
     @State private var showRestorePrompt = false
     @State private var restoredCount: Int?
+    /// Changed when the widget is tapped, so Home opens fresh (back at the main screen)
+    @State private var homeID = UUID()
 
     init() {
         // No permission pop-up while the screenshot test runs
@@ -39,6 +41,7 @@ struct LifeOrderingApp: App {
             Group {
                 if hasSeenIntroPage {
                     HomeView()
+                        .id(homeID)
                 } else {
                     IntroPage(hasSeenIntroPage: $hasSeenIntroPage)
                 }
@@ -46,6 +49,10 @@ struct LifeOrderingApp: App {
             .modelContainer(sharedModelContainer)
             .preferredColorScheme(colorScheme)
             .task { checkForRestore() }
+            // The widget's + (and any tap on the widget) opens the main screen
+            .onOpenURL { url in
+                if url.scheme == "tobedone" { homeID = UUID() }
+            }
             .alert("Restore your data?", isPresented: $showRestorePrompt, presenting: backupToRestore) { backup in
                 Button("Restore") {
                     restoredCount = BackupManager.restore(backup, into: sharedModelContainer.mainContext)

@@ -20,6 +20,8 @@ struct AddActivitySheet: View {
     @State private var repeatWeeksCount: Int = 4   // 1…52
     @State private var showingOverlapAlert = false
     @State private var pendingItems: [ActivityItem] = []
+    @State private var remindBefore = false
+    @State private var remindMinutes = 30
 
     var onSave: ([ActivityItem]) -> Void
 
@@ -75,6 +77,14 @@ struct AddActivitySheet: View {
                         Stepper(value: $duration, in: 0...480, step: 5) { Text("\(Int(duration)) min") }
                     }
                 }
+                Section {
+                    // Optional early reminder: "… is starting in 2 days and 30 min"
+                    ReminderBeforeRows(isOn: $remindBefore, minutesBefore: $remindMinutes, start: date)
+                } footer: {
+                    if repeatWeekly && remindBefore {
+                        Text("Every week gets the same reminder before its start.")
+                    }
+                }
             }
             .navigationTitle("New Activity")
             .toolbar {
@@ -99,6 +109,9 @@ struct AddActivitySheet: View {
                                 repeatsWeekly: repeatWeekly,
                                 repeatWeeks: repeatWeekly ? repeatWeeksCount : 0
                             ))
+                            if remindBefore && remindMinutes > 0 {
+                                newItems[newItems.count - 1].reminderMinutes = remindMinutes
+                            }
                         }
 
                         // ⭐ OVERLAP CHECK — if any occurrence overlaps, ask once for the whole set.

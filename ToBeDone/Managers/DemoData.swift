@@ -58,10 +58,11 @@ enum DemoData {
             context.insert(GroceryItemModel(name: name, isBought: bought))
         }
 
-        // Monthly expenses
-        for (title, price) in [("Rent", 650.0), ("Electricity", 75.0), ("Internet", 25.0),
-                               ("Phone", 15.0), ("Gym", 40.0), ("Streaming", 12.0)] {
-            context.insert(MonthlyTaskModel(title: title, price: price))
+        // Monthly expenses (Internet is due today, so it shows on the Today card)
+        let todayDay = min(cal.component(.day, from: today), 28)
+        for (title, price, day) in [("Rent", 650.0, 1), ("Electricity", 75.0, 15), ("Internet", 25.0, todayDay),
+                                    ("Phone", 15.0, 20), ("Gym", 40.0, 5), ("Streaming", 12.0, 12)] {
+            context.insert(MonthlyTaskModel(title: title, price: price, dayOfMonth: day))
         }
 
         // Projects

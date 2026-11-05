@@ -26,6 +26,9 @@ struct ActivityRow: View {
                         .font(.body.weight(.medium))
                     if !item.details.isEmpty { Text(item.details).font(.caption).foregroundStyle(.secondary) }
                 }
+                if !item.isCompleted {
+                    ReminderBadge(minutes: item.reminderMinutes)
+                }
             }
             Spacer()
             if item.durationMinutes > 0 {

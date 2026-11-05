@@ -22,6 +22,8 @@ class TaskModel: Identifiable {
     var dueDate: Date
     var priority: TaskPriority
     var isCompleted: Bool = false
+    /// Optional early reminder this many minutes before the due time (nil = none)
+    var reminderMinutes: Int? = nil
 
     // Reminders are scheduled/cancelled by the views (add, complete, delete, import),
     // not here, so creating a task in code never fires an unexpected notification.

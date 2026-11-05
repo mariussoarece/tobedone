@@ -37,6 +37,7 @@ struct AppBackup: Codable {
     struct TaskB: Codable {
         var id: UUID; var title: String; var dueDate: Date
         var priority: String?; var isCompleted: Bool?
+        var reminderMinutes: Int?
     }
     struct ShoppingB: Codable {
         var id: UUID; var name: String; var price: Double
@@ -44,6 +45,7 @@ struct AppBackup: Codable {
     }
     struct MonthlyB: Codable {
         var id: UUID; var title: String; var price: Double?
+        var dayOfMonth: Int?; var timeOfDayMinutes: Int?
     }
     struct SubtaskB: Codable {
         var id: UUID; var title: String; var isCompleted: Bool?
@@ -61,6 +63,7 @@ struct AppBackup: Codable {
         var id: UUID; var date: Date; var name: String; var details: String?
         var durationMinutes: Int?; var isCompleted: Bool?
         var seriesId: UUID?; var repeatsWeekly: Bool?; var repeatWeeks: Int?
+        var reminderMinutes: Int?
     }
     struct FocusB: Codable {
         var date: Date; var duration: Double
@@ -90,14 +93,16 @@ enum BackupManager {
         var b = AppBackup()
         b.tasks = all(TaskModel.self).map {
             AppBackup.TaskB(id: $0.id, title: $0.title, dueDate: $0.dueDate,
-                  priority: $0.priority.rawValue, isCompleted: $0.isCompleted)
+                  priority: $0.priority.rawValue, isCompleted: $0.isCompleted,
+                  reminderMinutes: $0.reminderMinutes)
         }
         b.shoppingItems = all(ShoppingItemModel.self).map {
             AppBackup.ShoppingB(id: $0.id, name: $0.name, price: $0.price, currency: $0.currency,
                   priority: $0.priority.rawValue, isCompleted: $0.isCompleted, completedAt: $0.completedAt)
         }
         b.monthlyTasks = all(MonthlyTaskModel.self).map {
-            AppBackup.MonthlyB(id: $0.id, title: $0.title, price: $0.price)
+            AppBackup.MonthlyB(id: $0.id, title: $0.title, price: $0.price,
+                               dayOfMonth: $0.dayOfMonth, timeOfDayMinutes: $0.timeOfDayMinutes)
         }
         b.projects = all(OtherTaskModel.self).map { p in
             AppBackup.ProjectB(id: p.id, title: p.title, isCompleted: p.isCompleted,
@@ -112,7 +117,8 @@ enum BackupManager {
         b.activities = all(ActivityItem.self).map {
             AppBackup.ActivityB(id: $0.id, date: $0.date, name: $0.name, details: $0.details,
                   durationMinutes: $0.durationMinutes, isCompleted: $0.isCompleted,
-                  seriesId: $0.seriesId, repeatsWeekly: $0.repeatsWeekly, repeatWeeks: $0.repeatWeeks)
+                  seriesId: $0.seriesId, repeatsWeekly: $0.repeatsWeekly, repeatWeeks: $0.repeatWeeks,
+                  reminderMinutes: $0.reminderMinutes)
         }
         b.focusResults = all(FocusResult.self).map {
             AppBackup.FocusB(date: $0.date, duration: $0.duration)
@@ -188,6 +194,7 @@ enum BackupManager {
                               priority: TaskPriority(rawValue: t.priority ?? "") ?? .medium)
             m.id = t.id
             m.isCompleted = t.isCompleted ?? false
+            m.reminderMinutes = t.reminderMinutes
             context.insert(m)
             NotificationManager.shared.scheduleNotification(for: m)
             added += 1
@@ -206,7 +213,8 @@ enum BackupManager {
 
         let monthlyIds = ids(MonthlyTaskModel.self) { $0.id }
         for mt in backup.monthlyTasks where !monthlyIds.contains(mt.id) {
-            let m = MonthlyTaskModel(title: mt.title, price: mt.price ?? 0)
+            let m = MonthlyTaskModel(title: mt.title, price: mt.price ?? 0, dayOfMonth: mt.dayOfMonth)
+            m.timeOfDayMinutes = mt.timeOfDayMinutes
             m.id = mt.id
             context.insert(m)
             added += 1
@@ -246,6 +254,7 @@ enum BackupManager {
                                  repeatsWeekly: a.repeatsWeekly ?? false,
                                  repeatWeeks: a.repeatWeeks ?? 0)
             m.id = a.id
+            m.reminderMinutes = a.reminderMinutes
             context.insert(m)
             added += 1
         }
@@ -258,6 +267,7 @@ enum BackupManager {
         }
 
         try? context.save()
+        ReminderScheduler.refresh(context: context)   // reminders and widget for the restored items
         return added
     }
 

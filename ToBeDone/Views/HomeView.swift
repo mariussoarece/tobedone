@@ -2,7 +2,7 @@
 //  HomeView.swift
 //  ToBeDone
 //
-//  Home screen (design "A · Clean iOS"): greeting, Today progress, and the
+//  Home screen (design "A · Clean iOS"): greeting, today's agenda, and the
 //  Plan / Do / Grow sections. Colors are system colors, so dark mode works automatically.
 //
 
@@ -13,6 +13,8 @@ struct HomeView: View {
     @AppStorage("userName") private var userName: String = ""
     @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     @State private var showSettings = false
+    @State private var destination: HomeDestination?
+    @Environment(\.modelContext) private var modelContext
 
     @Query private var tasks: [TaskModel]
     @Query private var activities: [ActivityItem]
@@ -33,9 +35,9 @@ struct HomeView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
 
-                // Today
+                // Today: everything scheduled today, by time
                 Section {
-                    todayCard
+                    todaySection
                 }
 
                 Section {
@@ -91,6 +93,14 @@ struct HomeView: View {
             .environment(\.defaultMinListRowHeight, 34)   // allows the shorter rows below
             .toolbar(.hidden, for: .navigationBar)   // the greeting replaces the title bar on Home only
             .navigationDestination(isPresented: $showSettings) { SettingsView() }
+            .navigationDestination(item: $destination) { target in
+                switch target {
+                case .todo: DueTasksView()
+                case .monthly: MonthlyTasksView()
+                case .routine: DailyActivitiesView()
+                case .weekly: DailyActivitiesView(startWeekly: true)
+                }
+            }
         }
     }
 
@@ -129,39 +139,89 @@ struct HomeView: View {
 
     // MARK: - Today card
 
-    private var todayCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Today").font(.headline)
-                Spacer()
-                if todayTotal > 0 {
-                    Text("\(Int((todayProgress * 100).rounded()))%")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.blue)
-                }
+    /// Today's To Do tasks, Monthly Expenses and Daily Routine activities, by time.
+    /// Each one is its own row: tap it to open its section, tap the circle to tick it off.
+    @ViewBuilder
+    private var todaySection: some View {
+        HStack {
+            Text("Today").font(.headline)
+            Spacer()
+            // Weekly view of the Daily Routine, with To Do and Monthly Expenses as lines
+            Button {
+                destination = .weekly
+            } label: {
+                Label("Weekly view", systemImage: "calendar.day.timeline.left")
+                    .font(.subheadline.weight(.medium))
             }
-            if todayTotal > 0 {
-                ProgressView(value: todayProgress)
-                    .tint(.blue)
-                    .accessibilityLabel("Today's progress")
-            } else {
-                Text("Nothing planned for today.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            HStack(spacing: 16) {
-                stat(openTasks, "tasks due")
-                stat(activitiesLeftToday, "activities left")
-                stat(toBuy, "to buy")
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+            .tint(.blue)
         }
-        .padding(.vertical, 6)
+        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 8, trailing: 12))
+
+        if todayAgenda.isEmpty {
+            Text("Nothing planned for today.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 10, trailing: 16))
+        } else {
+            ForEach(todayAgenda) { item in
+                TodayRow(item: item, currency: selectedCurrency,
+                         onToggle: item.kind == .monthly ? nil : { toggle(item) })
+                    .contentShape(Rectangle())
+                    .onTapGesture { destination = HomeDestination(item.kind) }
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 12))
+            }
+        }
     }
 
-    private func stat(_ value: Int, _ label: String) -> Text {
-        Text("\(value)").bold().foregroundColor(.primary) + Text(" \(label)")
+    private var todayAgenda: [AgendaItem] {
+        Agenda.forDay(.now, tasks: tasks, monthly: monthlyItems, activities: activities)
+    }
+
+    /// Tick a To Do task or Daily Routine activity off (or back on) from the Today card.
+    private func toggle(_ item: AgendaItem) {
+        switch item.kind {
+        case .task:
+            guard let task = tasks.first(where: { $0.id == item.modelID }) else { return }
+            task.isCompleted.toggle()
+            try? modelContext.save()
+            if task.isCompleted {
+                NotificationManager.shared.cancelNotification(for: task)
+            } else {
+                NotificationManager.shared.scheduleNotification(for: task)
+            }
+        case .activity:
+            guard let activity = activities.first(where: { $0.id == item.modelID }) else { return }
+            activity.isCompleted.toggle()
+            try? modelContext.save()
+            syncActivityConfidence(for: activity.date)
+        case .monthly:
+            return
+        }
+        ReminderScheduler.refresh(context: modelContext)
+    }
+
+    /// Same rule as the Daily Routine screen: the day's score is the share of
+    /// activities done (0–10), kept in a ConfidenceEntry tagged "activities".
+    private func syncActivityConfidence(for date: Date) {
+        let cal = Calendar.current
+        let dayStart = cal.startOfDay(for: date)
+        let dayItems = activities.filter { cal.isDate($0.date, inSameDayAs: dayStart) }
+        let existing = confidenceEntries.first {
+            cal.isDate($0.date, inSameDayAs: dayStart) && $0.tags.contains("activities")
+        }
+        guard !dayItems.isEmpty else { return }
+        let done = dayItems.filter(\.isCompleted).count
+        let score = Int((Double(done) / Double(dayItems.count) * 10).rounded())
+        if let existing {
+            existing.score = score
+        } else {
+            modelContext.insert(ConfidenceEntry(date: dayStart, score: score,
+                                                note: "Derived from activities", tags: ["activities"]))
+        }
+        try? modelContext.save()
     }
 
     // MARK: - Numbers
@@ -172,21 +232,8 @@ struct HomeView: View {
         return tasks.filter { !$0.isCompleted && $0.dueDate < endOfToday }.count
     }
 
-    private var todayTasks: [TaskModel] { tasks.filter { Calendar.current.isDateInToday($0.dueDate) } }
-    private var todayActivities: [ActivityItem] { activities.filter { Calendar.current.isDateInToday($0.date) } }
-
-    private var activitiesLeftToday: Int { todayActivities.filter { !$0.isCompleted }.count }
-
-    /// Today's tasks and activities: how many there are and how many are done
-    private var todayTotal: Int { todayTasks.count + todayActivities.count }
-    private var todayProgress: Double {
-        guard todayTotal > 0 else { return 0 }
-        let done = todayTasks.filter(\.isCompleted).count + todayActivities.filter(\.isCompleted).count
-        return Double(done) / Double(todayTotal)
-    }
-
-    private var toBuy: Int {
-        shoppingItems.filter { !$0.isCompleted }.count + groceryItems.filter { !$0.isBought }.count
+    private var activitiesLeftToday: Int {
+        activities.filter { !$0.isCompleted && Calendar.current.isDateInToday($0.date) }.count
     }
 
     private var monthlyText: String? {
@@ -211,6 +258,60 @@ struct HomeView: View {
     }
 
     private func countText(_ n: Int) -> String? { n > 0 ? "\(n)" : nil }
+}
+
+// MARK: - Today rows
+
+/// Where a tap on the Today card leads
+enum HomeDestination: Hashable {
+    case todo, monthly, routine, weekly
+
+    init(_ kind: AgendaKind) {
+        switch kind {
+        case .task: self = .todo
+        case .monthly: self = .monthly
+        case .activity: self = .routine
+        }
+    }
+}
+
+/// "09:00 | Deep work · Daily Routine · 120 min   ○"
+private struct TodayRow: View {
+    let item: AgendaItem
+    let currency: String
+    let onToggle: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(item.start.formatted(date: .omitted, time: .shortened))
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 58, alignment: .leading)
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(item.kind.color)
+                .frame(width: 3, height: 26)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.title)
+                    .strikethrough(item.done)
+                    .foregroundStyle(item.done ? .secondary : .primary)
+                    .lineLimit(1)
+                Text(item.detail(currency: currency))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            if let onToggle {
+                Button(action: onToggle) {
+                    Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(item.done ? Color.green : Color.secondary)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(item.done ? "Mark as not done" : "Mark as done")
+            }
+        }
+    }
 }
 
 // MARK: - Row
