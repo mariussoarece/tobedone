@@ -6,6 +6,7 @@
 #
 # List the simulator names you have with:  xcrun simctl list devices available
 # The PNG files are saved in a folder on your Desktop.
+# The simulator is erased first (only the simulator, never your iPhone).
 
 set -e
 cd "$(dirname "$0")/.."
@@ -13,6 +14,12 @@ cd "$(dirname "$0")/.."
 DEVICE="${1:-iPhone 17 Pro Max}"
 OUT="$HOME/Desktop/ToBeDone Screenshots/$DEVICE"
 mkdir -p "$OUT"
+
+# Start from a clean simulator: a Home Screen that got stuck (for example after
+# adding widgets) can refuse to open the test runner ("RequestDenied").
+echo "Resetting simulator: $DEVICE"
+xcrun simctl shutdown "$DEVICE" 2>/dev/null || true
+xcrun simctl erase "$DEVICE"
 
 echo "Starting simulator: $DEVICE"
 xcrun simctl boot "$DEVICE" 2>/dev/null || true
@@ -28,6 +35,7 @@ TEST_RUNNER_SCREENSHOT_DIR="$OUT" xcodebuild test \
   -scheme ToBeDone \
   -destination "platform=iOS Simulator,name=$DEVICE" \
   -only-testing:ToBeDoneUITests/AppStoreScreenshots \
+  -parallel-testing-enabled NO \
   -quiet
 
 xcrun simctl status_bar "$DEVICE" clear || true
