@@ -41,6 +41,7 @@ final class AppStoreScreenshots: XCTestCase {
         openRow("To Do")
         snap("2-ToDo")
         goBack()
+        scrollToTop()
 
         openRow("Daily Routine")
         let weekly = app.segmentedControls.buttons["Weekly"]
@@ -48,6 +49,7 @@ final class AppStoreScreenshots: XCTestCase {
         sleep(1)
         snap("3-DailyRoutine-Weekly")
         goBack()
+        scrollToTop()
 
         openRow("Confidence")
         sleep(1)   // let the chart finish drawing
@@ -64,9 +66,29 @@ final class AppStoreScreenshots: XCTestCase {
 
     private func openRow(_ title: String) {
         let row = app.staticTexts[title].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "Row \(title) not found")
+        // Home is longer now (today's items are listed at the top), so rows such as
+        // Confidence and Focus Test can be below the screen: scroll until visible.
+        scrollTo(row)
+        XCTAssertTrue(row.exists, "Row \(title) not found")
         row.tap()
         sleep(1)
+    }
+
+    /// Swipes up (then back down) until `element` is on screen and can be tapped.
+    private func scrollTo(_ element: XCUIElement) {
+        if element.waitForExistence(timeout: 3), element.isHittable { return }
+        for _ in 0..<6 {
+            app.swipeUp()
+            if element.exists && element.isHittable { return }
+        }
+        for _ in 0..<12 {
+            app.swipeDown()
+            if element.exists && element.isHittable { return }
+        }
+    }
+
+    private func scrollToTop() {
+        for _ in 0..<3 { app.swipeDown() }
     }
 
     private func goBack() {
