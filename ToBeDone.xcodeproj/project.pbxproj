@@ -7,17 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2991CA0C2E00000000A00001 /* ToBeDoneWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2991CA012E00000000A00001 /* ToBeDoneWidgetExtension.appex */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2991CA0C2E00000000A00001 /* ToBeDoneWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2991CA012E00000000A00001 /* ToBeDoneWidgetExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		2991CA0E2E00000000A00001 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 2991C9562D7C76DE000C2CB7 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 2991CA042E00000000A00001;
-			remoteInfo = ToBeDoneWidgetExtension;
-		};
 		2991C9722D7C76E1000C2CB7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2991C9562D7C76DE000C2CB7 /* Project object */;
@@ -31,6 +24,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 2991C95D2D7C76DE000C2CB7;
 			remoteInfo = ToBeDone;
+		};
+		2991CA0E2E00000000A00001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2991C9562D7C76DE000C2CB7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2991CA042E00000000A00001;
+			remoteInfo = ToBeDoneWidgetExtension;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -49,26 +49,26 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		2991CA012E00000000A00001 /* ToBeDoneWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ToBeDoneWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2991C95E2D7C76DE000C2CB7 /* ToBeDone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ToBeDone.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2991C9712D7C76E1000C2CB7 /* ToBeDoneTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ToBeDoneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2991C97B2D7C76E1000C2CB7 /* ToBeDoneUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ToBeDoneUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2991CA012E00000000A00001 /* ToBeDoneWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ToBeDoneWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		29E921832DAAC1AC00B4FF41 /* Exceptions for "ToBeDone" folder in "ToBeDone" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 2991C95D2D7C76DE000C2CB7 /* ToBeDone */;
-		};
 		2991CA032E00000000A00001 /* Exceptions for "ToBeDoneWidget" folder in "ToBeDoneWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 2991CA042E00000000A00001 /* ToBeDoneWidgetExtension */;
+		};
+		29E921832DAAC1AC00B4FF41 /* Exceptions for "ToBeDone" folder in "ToBeDone" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2991C95D2D7C76DE000C2CB7 /* ToBeDone */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -373,9 +373,7 @@
 		};
 		2991CA0D2E00000000A00001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			platformFilters = (
-				ios,
-			);
+			platformFilter = ios;
 			target = 2991CA042E00000000A00001 /* ToBeDoneWidgetExtension */;
 			targetProxy = 2991CA0E2E00000000A00001 /* PBXContainerItemProxy */;
 		};
