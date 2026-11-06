@@ -28,7 +28,8 @@ struct MonthlyTasksView: View {
                                 .foregroundColor(.orange)
                                 .padding(.horizontal)
                                 .padding(.top)
-            KeyboardDismissWrapper {
+            // No KeyboardDismissWrapper here: its separate hosting controller kept the
+            // list from refreshing after an edit (and the Edit window from closing).
                 Form {
                     Section(header: Text("Add Monthly Task")) {
                         TextField("Task Title", text: $newTaskTitle)
@@ -98,8 +99,14 @@ struct MonthlyTasksView: View {
                         .padding(.horizontal)
                     }
                 }
-
-            }
+                .scrollDismissesKeyboard(.interactively)
+                .toolbar {
+                    // The number pad has no Return key, so add a Done button above the keyboard
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") { hideKeyboard() }
+                    }
+                }
             .fileImporter(
                     isPresented: $showingImporter,
                     allowedContentTypes: [.json],
