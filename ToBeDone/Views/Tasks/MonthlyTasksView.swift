@@ -15,6 +15,8 @@ struct MonthlyTasksView: View {
     @State private var newDay: Int = min(Calendar.current.component(.day, from: .now), 28)
     @State private var newTime: Date = MonthlyTasksView.tenOClock
     @State private var editing: MonthlyTaskModel?
+    /// Bumped after an edit so the list is redrawn with the new day and time
+    @State private var listRevision = 0
     @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     @State private var exportURL: URL?
     @State private var showingImporter = false
@@ -58,22 +60,15 @@ struct MonthlyTasksView: View {
 
                     Section(header: Text("Monthly Tasks - Tap to edit, swipe to delete")) {
                         ForEach(sortedTasks, id: \.id) { task in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(task.title)
-                                    // "Every month on day 5 at 10:00"
-                                    Text(task.scheduleText ?? "No day set – tap to choose one")
-                                        .font(.caption)
-                                        .foregroundStyle(task.dayOfMonth == nil ? Color.orange : Color.secondary)
-                                }
-                                Spacer()
-                                Text("\(task.price, specifier: "%.2f") \(selectedCurrency)")
-                                    .foregroundColor(.secondary)
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture { editing = task }
+                            MonthlyRow(title: task.title,
+                                       schedule: task.scheduleText,
+                                       price: task.price,
+                                       currency: selectedCurrency)
+                                .contentShape(Rectangle())
+                                .onTapGesture { editing = task }
                         }
                         .onDelete(perform: deleteTask)
+                        .id(listRevision)
                     }
 
                     Section {
@@ -136,9 +131,15 @@ struct MonthlyTasksView: View {
                     }
                 }
             .sheet(item: $editing) { task in
-                EditMonthlyTaskSheet(task: task) {
+                EditMonthlyTaskSheet(task: task) { title, price, day, minutes in
+                    // Write the changes here, in the screen's own database context
+                    task.title = title
+                    task.price = price
+                    task.dayOfMonth = day
+                    task.timeOfDayMinutes = minutes
                     try? modelContext.save()
                     ReminderScheduler.refresh(context: modelContext)
+                    listRevision += 1
                 }
             }
             .navigationBarTitleDisplayMode(.inline) // optional
@@ -279,14 +280,15 @@ struct EditMonthlyTaskSheet: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     let task: MonthlyTaskModel
-    var onSave: () -> Void
+    /// title, price, day of month, minutes after midnight
+    var onSave: (String, Double, Int, Int) -> Void
 
     @State private var title: String
     @State private var price: String
     @State private var day: Int
     @State private var time: Date
 
-    init(task: MonthlyTaskModel, onSave: @escaping () -> Void) {
+    init(task: MonthlyTaskModel, onSave: @escaping (String, Double, Int, Int) -> Void) {
         self.task = task
         self.onSave = onSave
         _title = State(initialValue: task.title)
@@ -325,11 +327,7 @@ struct EditMonthlyTaskSheet: View {
                         let trimmed = title.trimmingCharacters(in: .whitespaces)
                         guard !trimmed.isEmpty else { return }
                         let t = Calendar.current.dateComponents([.hour, .minute], from: time)
-                        task.title = trimmed
-                        task.price = price.decimalValue ?? 0
-                        task.dayOfMonth = day
-                        task.timeOfDayMinutes = (t.hour ?? 10) * 60 + (t.minute ?? 0)
-                        onSave()
+                        onSave(trimmed, price.decimalValue ?? 0, day, (t.hour ?? 10) * 60 + (t.minute ?? 0))
                         dismiss()
                     }
                     .buttonStyle(.borderedProminent)
@@ -338,5 +336,30 @@ struct EditMonthlyTaskSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+// MARK: - Row
+
+/// Plain values only, so the row is redrawn whenever they change.
+private struct MonthlyRow: View {
+    let title: String
+    let schedule: String?
+    let price: Double
+    let currency: String
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                // "Every month on day 5 at 10:00"
+                Text(schedule ?? "No day set – tap to choose one")
+                    .font(.caption)
+                    .foregroundStyle(schedule == nil ? Color.orange : Color.secondary)
+            }
+            Spacer()
+            Text("\(price, specifier: "%.2f") \(currency)")
+                .foregroundColor(.secondary)
+        }
     }
 }
