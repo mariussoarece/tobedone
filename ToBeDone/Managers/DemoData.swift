@@ -74,10 +74,8 @@ enum DemoData {
     private static func seedHome(_ context: ModelContext) {
         let today = min(Calendar.current.component(.day, from: .now), 28)
 
-        // Today, in time order
-        context.insert(ActivityItem(date: at(0, 7), name: "Morning run", durationMinutes: 30, isCompleted: true))
+        // Today, in time order: four items
         context.insert(ActivityItem(date: at(0, 9), name: "Deep work for the new project", durationMinutes: 120))
-        context.insert(ActivityItem(date: at(0, 13), name: "Lunch walk", durationMinutes: 30))
         context.insert(task("Send the project report", at(0, 16), .high))
         context.insert(MonthlyTaskModel(title: "Pay the electricity bill", price: 75, dayOfMonth: today, hour: 18))
         context.insert(ActivityItem(date: at(0, 21), name: "Read a book", durationMinutes: 30))
@@ -128,6 +126,10 @@ enum DemoData {
         weekly("Morning run", firstDay: 3, hour: 9, minutes: 30, doneFirst: true)
         weekly("Lunch walk", firstDay: 3, hour: 13, minutes: 30, doneFirst: false)
 
+        // Two more activities on Tuesday 3 November, the day selected in the Monthly view
+        context.insert(ActivityItem(date: november(3, 17), name: "Language class", durationMinutes: 60))
+        context.insert(ActivityItem(date: november(3, 21), name: "Read a book", durationMinutes: 30))
+
         // Monthly Expenses on 2, 3 and 4 November (shown as orange lines)
         context.insert(MonthlyTaskModel(title: "Rent", price: 650, dayOfMonth: 2, hour: 10))
         context.insert(MonthlyTaskModel(title: "Internet", price: 25, dayOfMonth: 3, hour: 11))
@@ -147,7 +149,7 @@ enum DemoData {
         context.insert(MonthlyTaskModel(title: "Internet", price: 25, dayOfMonth: 15, hour: 10))
     }
 
-    // MARK: - Projects: one, with three subtasks
+    // MARK: - Projects: one open with three subtasks, one completed
 
     private static func seedProject(_ context: ModelContext) {
         context.insert(OtherTaskModel(title: "Plan summer holiday", subtasks: [
@@ -155,16 +157,20 @@ enum DemoData {
             SubtaskModel(title: "Book flights"),
             SubtaskModel(title: "Find a hotel"),
         ]))
+        context.insert(OtherTaskModel(title: "Paint the balcony", isCompleted: true, subtasks: [
+            SubtaskModel(title: "Buy paint", isCompleted: true),
+            SubtaskModel(title: "Paint the walls", isCompleted: true),
+        ]))
     }
 
-    // MARK: - Grocery: eight to buy, three bought
+    // MARK: - Grocery: eight items, five to buy and three bought
 
     private static func seedGrocery(_ context: ModelContext) {
         insertGrocery(context)
     }
 
     private static func insertGrocery(_ context: ModelContext) {
-        for name in ["Milk", "Bread", "Eggs", "Tomatoes", "Avocados", "Greek yogurt", "Olive oil", "Spinach"] {
+        for name in ["Milk", "Bread", "Eggs", "Tomatoes", "Avocados"] {
             context.insert(GroceryItemModel(name: name))
         }
         for name in ["Coffee", "Bananas", "Rice"] {
