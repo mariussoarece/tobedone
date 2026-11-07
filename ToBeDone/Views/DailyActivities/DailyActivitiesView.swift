@@ -22,8 +22,8 @@ struct DailyActivitiesView: View {
     @Query private var tasks: [TaskModel]
     @Query private var monthlyTasks: [MonthlyTaskModel]
 
-    @State private var monthAnchor: Date = Calendar.current.startOfMonth(for: .now)
-    @State private var selectedDate: Date = Calendar.current.startOfDay(for: .now)
+    @State private var monthAnchor: Date = Calendar.current.startOfMonth(for: DemoData.now)
+    @State private var selectedDate: Date = Calendar.current.startOfDay(for: DemoData.now)
 
     @State private var showingAddSheet = false
     @State private var exportURL: URL?
@@ -35,7 +35,7 @@ struct DailyActivitiesView: View {
     init(startWeekly: Bool = false) {
         _viewMode = State(initialValue: startWeekly ? .weekly : .monthly)
     }
-    @State private var currentWeekStart: Date = Calendar.current.startOfWeek(for: .now)
+    @State private var currentWeekStart: Date = Calendar.current.startOfWeek(for: DemoData.now)   // the real date, except in screenshots
 
     var body: some View {
         VStack(spacing: 8) {

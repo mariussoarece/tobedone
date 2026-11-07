@@ -13,6 +13,16 @@ final class AppStoreScreenshots: XCTestCase {
     private var app: XCUIApplication!
     private var outputFolder: URL?
 
+    // -demoData: sample content in memory only. The other arguments set the
+    // name and settings for this run without changing what's saved.
+    private let baseArguments = [
+        "-demoData",
+        "-hasSeenIntroPage", "YES",
+        "-userName", "Alex",
+        "-selectedCurrency", "EUR",
+        "-selectedTheme", "Light",
+    ]
+
     override func setUpWithError() throws {
         continueAfterFailure = true   // keep taking the other screenshots if one screen fails
 
@@ -21,58 +31,82 @@ final class AppStoreScreenshots: XCTestCase {
         }
 
         app = XCUIApplication()
-        // -demoData: sample content in memory only. The other arguments set the
-        // name and settings for this run without changing what's saved.
-        app.launchArguments += [
-            "-demoData",
-            "-hasSeenIntroPage", "YES",
-            "-userName", "Alex",
-            "-selectedCurrency", "EUR",
-            "-selectedTheme", "Light",
-        ]
     }
 
     @MainActor
     func testAppStoreScreenshots() throws {
-        app.launch()
-        XCTAssertTrue(app.staticTexts["To Do"].waitForExistence(timeout: 10))
+        // Each screenshot starts the app with its own sample data ("-demoScene")
+        launch("home")
+        XCTAssertTrue(app.staticTexts["Today"].waitForExistence(timeout: 10))
         snap("1-Home")
 
+        launch("todo")
         openRow("To Do")
         snap("2-ToDo")
-        goBack()
 
+        launch("routine")
         openRow("Daily Routine")
+        sleep(1)
+        snap("3-DailyRoutine-Monthly")
         let weekly = app.segmentedControls.buttons["Weekly"]
         if weekly.waitForExistence(timeout: 5) { weekly.tap() }
         sleep(1)
-        snap("3-DailyRoutine-Weekly")
-        goBack()
+        snap("4-DailyRoutine-Weekly")
 
+        launch("monthly")
+        openRow("Monthly Expenses")
+        snap("5-MonthlyExpenses")
+
+        launch("projects")
+        openRow("Projects")
+        snap("6-Projects")
+
+        launch("grocery")
+        openRow("Grocery")
+        snap("7-Grocery")
+
+        launch("confidence")
         openRow("Confidence")
         sleep(1)   // let the chart finish drawing
-        snap("4-Confidence")
-        goBack()
+        snap("8-Confidence")
 
+        launch("focus")
         openRow("Focus Test")
         sleep(1)
-        snap("5-FocusTest")
-        goBack()
+        snap("9-FocusTest")
+    }
+
+    /// (Re)starts the app with the sample data for one screenshot.
+    private func launch(_ scene: String) {
+        app.terminate()
+        app.launchArguments = baseArguments + ["-demoScene", scene]
+        app.launch()
+        _ = app.staticTexts["Today"].waitForExistence(timeout: 10)
     }
 
     // MARK: - Helpers
 
     private func openRow(_ title: String) {
         let row = app.staticTexts[title].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "Row \(title) not found")
+        // Home is longer now (today's items are listed at the top), so rows such as
+        // Confidence and Focus Test can be below the screen: scroll until visible.
+        scrollTo(row)
+        XCTAssertTrue(row.exists, "Row \(title) not found")
         row.tap()
         sleep(1)
     }
 
-    private func goBack() {
-        let back = app.navigationBars.buttons.element(boundBy: 0)
-        if back.waitForExistence(timeout: 3) { back.tap() }
-        sleep(1)
+    /// Swipes up (then back down) until `element` is on screen and can be tapped.
+    private func scrollTo(_ element: XCUIElement) {
+        if element.waitForExistence(timeout: 3), element.isHittable { return }
+        for _ in 0..<6 {
+            app.swipeUp()
+            if element.exists && element.isHittable { return }
+        }
+        for _ in 0..<12 {
+            app.swipeDown()
+            if element.exists && element.isHittable { return }
+        }
     }
 
     private func snap(_ name: String) {
