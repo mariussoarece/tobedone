@@ -13,9 +13,11 @@ struct SubtaskSectionView: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var localSubtask: String = ""
+    /// Closed by default; open in the App Store screenshot so the subtasks show
+    @State private var isExpanded = DemoData.isEnabled
 
     var body: some View {
-        DisclosureGroup {
+        DisclosureGroup(isExpanded: $isExpanded) {
             ForEach($task.subtasks) { $subtask in
                 HStack {
                     Button(action: {

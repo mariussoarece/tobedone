@@ -13,6 +13,7 @@ cd "$(dirname "$0")/.."
 
 DEVICE="${1:-iPhone 17 Pro Max}"
 OUT="$HOME/Desktop/ToBeDone Screenshots/$DEVICE"
+rm -rf "$OUT"   # start with an empty folder, so no old screenshots are mixed in
 mkdir -p "$OUT"
 
 # Start from a clean simulator: a Home Screen that got stuck (for example after
