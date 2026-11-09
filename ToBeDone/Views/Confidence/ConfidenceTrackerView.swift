@@ -262,6 +262,7 @@ struct ConfidenceTrackerView: View {
         modelContext.insert(entry)
         do {
             try modelContext.save()
+            ReminderScheduler.refresh(context: modelContext)   // the widget's smiley follows Confidence
             // UI feedback + reset
             note = ""
 //            selectedTags.removeAll()

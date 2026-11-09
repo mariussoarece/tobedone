@@ -27,6 +27,8 @@ struct WidgetSnapshot: Codable {
     }
     var generatedAt: Date
     var items: [Item]
+    /// Latest Confidence score (0–10), for the smiley in the background
+    var confidence: Int? = nil
 }
 
 enum WidgetData {
@@ -41,7 +43,8 @@ enum WidgetData {
     }
 
     @MainActor
-    static func write(tasks: [TaskModel], monthly: [MonthlyTaskModel], activities: [ActivityItem]) {
+    static func write(tasks: [TaskModel], monthly: [MonthlyTaskModel], activities: [ActivityItem],
+                      confidence: Int?) {
         guard !DemoData.isEnabled, let url = fileURL else { return }
         let cal = Calendar.current
         let currency = UserDefaults.standard.string(forKey: "selectedCurrency") ?? "USD"
@@ -57,13 +60,13 @@ enum WidgetData {
             }
         }
 
-        let snapshot = WidgetSnapshot(generatedAt: .now, items: items)
+        let snapshot = WidgetSnapshot(generatedAt: .now, items: items, confidence: confidence)
         do {
             let data = try JSONEncoder().encode(snapshot)
             // Only rewrite (and redraw the widget) when something actually changed
             if let old = try? Data(contentsOf: url),
                let oldSnapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: old),
-               oldSnapshot.items.count == items.count,
+               oldSnapshot.confidence == confidence,
                (try? JSONEncoder().encode(oldSnapshot.items)) == (try? JSONEncoder().encode(items)) {
                 return
             }

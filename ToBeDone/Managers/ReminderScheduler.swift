@@ -63,8 +63,12 @@ enum ReminderScheduler {
         let activities = (try? context.fetch(FetchDescriptor<ActivityItem>())) ?? []
         let monthly = (try? context.fetch(FetchDescriptor<MonthlyTaskModel>())) ?? []
 
-        // Keep the home-screen widget in step with the data
-        WidgetData.write(tasks: tasks, monthly: monthly, activities: activities)
+        // Keep the home-screen widget in step with the data (the latest Confidence
+        // score sets the smiley in the widget's background)
+        var latestConfidence = FetchDescriptor<ConfidenceEntry>(sortBy: [SortDescriptor(\.date, order: .reverse)])
+        latestConfidence.fetchLimit = 1
+        let confidence = (try? context.fetch(latestConfidence))?.first?.score
+        WidgetData.write(tasks: tasks, monthly: monthly, activities: activities, confidence: confidence)
 
         // Not while taking App Store screenshots
         guard !DemoData.isEnabled else { return }

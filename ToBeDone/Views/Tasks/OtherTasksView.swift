@@ -40,6 +40,7 @@ struct OtherTasksView: View {
                                 modelContext.insert(newTask)
                                 try? modelContext.save()   // save now, don't wait for autosave
                                 newTaskTitle = ""
+                                Toast.show("Project added")
                             }
                         }
                         .buttonStyle(.borderedProminent)   // blue, like Export

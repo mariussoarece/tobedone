@@ -158,6 +158,7 @@ struct MonthlyTasksView: View {
         modelContext.insert(newTask)
         try? modelContext.save()   // save now, don't wait for autosave
         ReminderScheduler.refresh(context: modelContext)   // monthly reminder
+        Toast.show("Expense added")
         newTaskTitle = ""
         newTaskPrice = ""
         newTime = Self.tenOClock

@@ -180,6 +180,8 @@ struct DueTasksView: View {
         NotificationManager.shared.scheduleNotification(for: newTask)
         ReminderScheduler.refresh(context: modelContext)   // update tonight's summary
 
+        Toast.show("Task added")
+
         // Reset UI
         newTaskTitle = ""
         dueDate = Date()

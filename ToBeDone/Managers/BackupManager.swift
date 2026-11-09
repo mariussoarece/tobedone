@@ -28,10 +28,13 @@ struct AppBackup: Codable {
     var confidenceEntries: [ConfidenceB] = []
     var activities: [ActivityB] = []
     var focusResults: [FocusB] = []
+    /// Optional: backups from versions before Journalling don't have it
+    var journal: [JournalB]? = nil
 
     var totalCount: Int {
         tasks.count + shoppingItems.count + monthlyTasks.count + projects.count +
-        groceryItems.count + confidenceEntries.count + activities.count + focusResults.count
+        groceryItems.count + confidenceEntries.count + activities.count + focusResults.count +
+        (journal?.count ?? 0)
     }
 
     struct TaskB: Codable {
@@ -67,6 +70,10 @@ struct AppBackup: Codable {
     }
     struct FocusB: Codable {
         var date: Date; var duration: Double
+    }
+    struct JournalB: Codable {
+        var id: UUID; var date: Date; var mood: String?
+        var richText: Data?; var plainText: String?
     }
 }
 
@@ -122,6 +129,10 @@ enum BackupManager {
         }
         b.focusResults = all(FocusResult.self).map {
             AppBackup.FocusB(date: $0.date, duration: $0.duration)
+        }
+        b.journal = all(JournalEntry.self).map {
+            AppBackup.JournalB(id: $0.id, date: $0.date, mood: $0.moodRaw,
+                               richText: $0.richText, plainText: $0.plainText)
         }
         return b
     }
@@ -255,6 +266,15 @@ enum BackupManager {
                                  repeatWeeks: a.repeatWeeks ?? 0)
             m.id = a.id
             m.reminderMinutes = a.reminderMinutes
+            context.insert(m)
+            added += 1
+        }
+
+        let journalIds = ids(JournalEntry.self) { $0.id }
+        for j in backup.journal ?? [] where !journalIds.contains(j.id) {
+            let m = JournalEntry(date: j.date, mood: JournalMood(rawValue: j.mood ?? "") ?? .good,
+                                 richText: j.richText, plainText: j.plainText ?? "")
+            m.id = j.id
             context.insert(m)
             added += 1
         }

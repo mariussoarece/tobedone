@@ -39,6 +39,7 @@ struct GroceryTasksView: View {
                             modelContext.insert(item)
                             try? modelContext.save()   // save now, don't wait for autosave
                             newItemName = ""
+                            Toast.show("Item added")
                         }
                         .buttonStyle(.borderedProminent)   // blue, like Export
                         .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen

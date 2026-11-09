@@ -105,6 +105,7 @@ struct DailyActivitiesView: View {
                 try? modelContext.save()
                 syncConfidenceForDays(affected)
                 ReminderScheduler.refresh(context: modelContext)
+                Toast.show(items.count == 1 ? "Activity added" : "\(items.count) activities added")
             }
         }
         .fileImporter(

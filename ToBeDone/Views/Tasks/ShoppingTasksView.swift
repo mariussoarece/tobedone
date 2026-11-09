@@ -51,6 +51,7 @@ struct ShoppingTasksView: View {
                                 try? modelContext.save()   // save now, don't wait for autosave
                                 newItemName = ""
                                 newItemPrice = ""
+                                Toast.show("Item added")
                             }
                         }
                         .buttonStyle(.borderedProminent)   // blue, like Export
