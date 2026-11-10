@@ -13,6 +13,7 @@ struct JournalView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \JournalEntry.date, order: .reverse) private var entries: [JournalEntry]
     @State private var search = ""
+    @State private var showNewEntry = false
 
     private var results: [JournalEntry] {
         let words = search.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -51,13 +52,14 @@ struct JournalView: View {
                         }
                     }
 
-                    NavigationLink {
-                        JournalEditorView(entry: nil)
+                    // Blue button with white text, like Add Task in To Do
+                    Button {
+                        showNewEntry = true
                     } label: {
                         Label("New Entry", systemImage: "square.and.pencil")
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.blue)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 
                 Section(search.isEmpty ? "Entries" : "\(results.count) found") {
@@ -75,12 +77,79 @@ struct JournalView: View {
                     }
                     .onDelete(perform: delete)
                 }
+
+                if !entries.isEmpty {
+                    Section {
+                        Button("Export Journal") { exportJournal() }
+                            .buttonStyle(.borderedProminent)
+                    } footer: {
+                        Text("Saves all entries, with their formatting, in one document you can open in Pages, Word or Notes.")
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .scrollDismissesKeyboard(.interactively)
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $showNewEntry) {
+            JournalEditorView(entry: nil)
+        }
+    }
+
+    // MARK: - Export (no import)
+
+    /// All entries, oldest first, in one RTF document: a bold heading with the
+    /// date and mood, then the text with its formatting.
+    private func exportJournal() {
+        let document = NSMutableAttributedString()
+        let heading: [NSAttributedString.Key: Any] = [
+            .font: UIFont.preferredFont(forTextStyle: .headline),
+            .foregroundColor: UIColor.label,
+        ]
+        let body: [NSAttributedString.Key: Any] = [
+            .font: RichTextController.baseFont,
+            .foregroundColor: UIColor.label,
+        ]
+        document.append(NSAttributedString(string: "ToBeDone – Journal\n\n",
+                                           attributes: [.font: UIFont.preferredFont(forTextStyle: .title1)]))
+        for entry in entries.sorted(by: { $0.date < $1.date }) {
+            let when = entry.date.formatted(date: .complete, time: .shortened)
+            document.append(NSAttributedString(string: "\(when) · \(entry.mood.emoji) \(entry.mood.title)\n",
+                                               attributes: heading))
+            document.append(JournalText.attributed(from: entry.richText))
+            document.append(NSAttributedString(string: "\n\n", attributes: body))
+        }
+
+        guard let data = JournalText.rtf(from: document) else { return }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("ToBeDone-Journal.rtf")
+        do {
+            try data.write(to: url, options: .atomic)
+            presentShareSheet(url: url)
+        } catch {
+            print("Journal export error:", error)
+        }
+    }
+
+    private func presentShareSheet(url: URL) {
+        guard let scene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let rootVC = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController
+        else { return }
+
+        var topVC = rootVC
+        while let presented = topVC.presentedViewController {
+            topVC = presented
+        }
+
+        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        // Required for iPad — without this it can crash on iPad
+        if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = topVC.view
+            popover.sourceRect = CGRect(x: topVC.view.bounds.midX, y: topVC.view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        topVC.present(activityVC, animated: true)
     }
 
     private func delete(at offsets: IndexSet) {
@@ -139,10 +208,9 @@ struct JournalEditorView: View {
         let color: UIColor?
         var id: String { name }
     }
+    /// Black (white in dark mode, so it stays readable) and red
     private let colors: [TextColor] = [
-        TextColor(name: "Normal", color: nil), TextColor(name: "Red", color: .systemRed),
-        TextColor(name: "Orange", color: .systemOrange), TextColor(name: "Green", color: .systemGreen),
-        TextColor(name: "Blue", color: .systemBlue), TextColor(name: "Purple", color: .systemPurple),
+        TextColor(name: "Black", color: nil), TextColor(name: "Red", color: .systemRed),
     ]
 
     init(entry: JournalEntry?) {
@@ -154,7 +222,7 @@ struct JournalEditorView: View {
 
     var body: some View {
         Form {
-            Section("How was it?") {
+            Section("How is your mood?") {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(JournalMood.allCases) { option in
@@ -185,7 +253,7 @@ struct JournalEditorView: View {
             } header: {
                 Text("Write")
             } footer: {
-                Text("Select words, then tap B, I, U or a colour. Without a selection, the style applies to what you type next.")
+                Text("Select words, then tap B, I, U, black or red. Without a selection, the style applies to what you type next.")
             }
         }
         .navigationTitle(entry == nil ? "New Entry" : "Edit Entry")

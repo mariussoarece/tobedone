@@ -180,7 +180,7 @@ struct DueTasksView: View {
         NotificationManager.shared.scheduleNotification(for: newTask)
         ReminderScheduler.refresh(context: modelContext)   // update tonight's summary
 
-        Toast.show("Task added")
+        Toast.show("Task added", color: .blue)
 
         // Reset UI
         newTaskTitle = ""

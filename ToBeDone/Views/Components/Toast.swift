@@ -16,17 +16,22 @@ final class Toast {
     static let shared = Toast()
 
     private(set) var message: String?
+    /// nil = the usual light bubble; a colour = coloured bubble with white text
+    private(set) var tint: Color?
     @ObservationIgnored private var showCount = 0
 
-    /// Shows `message` for 1 second.
-    static func show(_ message: String) {
-        shared.show(message)
+    /// Shows `message` for 1 second, optionally in a colour (e.g. blue on To Do).
+    static func show(_ message: String, color: Color? = nil) {
+        shared.show(message, color: color)
     }
 
-    private func show(_ text: String) {
+    private func show(_ text: String, color: Color?) {
         showCount += 1
         let current = showCount
-        withAnimation(.easeOut(duration: 0.15)) { message = text }
+        withAnimation(.easeOut(duration: 0.15)) {
+            message = text
+            tint = color
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             // A newer message keeps its own full second
@@ -40,12 +45,19 @@ final class Toast {
 struct ToastOverlay: View {
     var body: some View {
         if let message = Toast.shared.message {
+            let tint = Toast.shared.tint
             Label(message, systemImage: "checkmark.circle.fill")
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(tint == nil ? Color.primary : Color.white)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
-                .background(.regularMaterial, in: Capsule())
+                .background {
+                    if let tint {
+                        Capsule().fill(tint)
+                    } else {
+                        Capsule().fill(.regularMaterial)
+                    }
+                }
                 .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
                 .transition(.scale(scale: 0.9).combined(with: .opacity))
                 .allowsHitTesting(false)

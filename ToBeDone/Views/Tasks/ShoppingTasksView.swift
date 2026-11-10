@@ -13,6 +13,7 @@ struct ShoppingTasksView: View {
 
     @State private var newItemName: String = ""
     @State private var newItemPrice: String = ""
+    @State private var showPriceError = false
     @State private var selectedPriority: TaskPriority = .medium
     @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     @State private var exportURL: URL?
@@ -36,6 +37,12 @@ struct ShoppingTasksView: View {
                     Section(header: Text("Add New Item")) {
                         TextField("Item Name", text: $newItemName)
                         TextField("Price", text: $newItemPrice).keyboardType(.decimalPad)
+                            .onChange(of: newItemPrice) { _, _ in showPriceError = false }
+                        if showPriceError {
+                            Text("Please enter a price")
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        }
 
                         Picker("Priority", selection: $selectedPriority) {
                             ForEach(TaskPriority.allCases) { priority in
@@ -45,6 +52,9 @@ struct ShoppingTasksView: View {
 
                         Button("Add Item") {
                             let name = newItemName.trimmingCharacters(in: .whitespaces)
+                            if !name.isEmpty && newItemPrice.decimalValue == nil {
+                                withAnimation { showPriceError = true }
+                            }
                             if !name.isEmpty, let price = newItemPrice.decimalValue {
                                 let newItem = ShoppingItemModel(name: name, price: price, currency: selectedCurrency, priority: selectedPriority)
                                 modelContext.insert(newItem)

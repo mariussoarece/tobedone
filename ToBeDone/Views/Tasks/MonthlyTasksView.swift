@@ -12,6 +12,7 @@ struct MonthlyTasksView: View {
 
     @State private var newTaskTitle: String = ""
     @State private var newTaskPrice: String = ""
+    @State private var showPriceError = false
     @State private var newDay: Int = min(Calendar.current.component(.day, from: .now), 28)
     @State private var newTime: Date = MonthlyTasksView.tenOClock
     @State private var editing: MonthlyTaskModel?
@@ -43,6 +44,12 @@ struct MonthlyTasksView: View {
                             .onSubmit {
                                 hideKeyboard()
                             }
+                            .onChange(of: newTaskPrice) { _, _ in showPriceError = false }
+                        if showPriceError {
+                            Text("Please enter a price")
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        }
 
                         // Only 1–28, so the day exists in every month
                         Picker("Day of month", selection: $newDay) {
@@ -151,7 +158,10 @@ struct MonthlyTasksView: View {
     private func addTask() {
         let title = newTaskTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
-        let price = newTaskPrice.decimalValue ?? 0.0
+        guard let price = newTaskPrice.decimalValue else {
+            withAnimation { showPriceError = true }
+            return
+        }
         let time = Calendar.current.dateComponents([.hour, .minute], from: newTime)
         let newTask = MonthlyTaskModel(title: title, price: price, dayOfMonth: newDay,
                                        hour: time.hour ?? 10, minute: time.minute ?? 0)

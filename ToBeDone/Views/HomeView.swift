@@ -174,7 +174,7 @@ struct HomeView: View {
         } else {
             ForEach(todayAgenda) { item in
                 TodayRow(item: item, currency: selectedCurrency,
-                         onToggle: item.kind == .monthly ? nil : { toggle(item) })
+                         onToggle: item.kind == .monthly ? nil : { withAnimation { toggle(item) } })
                     .contentShape(Rectangle())
                     .onTapGesture { destination = HomeDestination(item.kind) }
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 12))
@@ -183,7 +183,9 @@ struct HomeView: View {
     }
 
     private var todayAgenda: [AgendaItem] {
+        // Ticked-off tasks and activities leave the Today panel
         Agenda.forDay(.now, tasks: tasks, monthly: monthlyItems, activities: activities)
+            .filter { !$0.done }
     }
 
     /// Tick a To Do task or Daily Routine activity off (or back on) from the Today card.
