@@ -68,7 +68,9 @@ struct MonthlyTasksView: View {
                     Section(header: Text("Monthly Tasks - Tap to edit, swipe to delete")) {
                         ForEach(sortedTasks, id: \.id) { task in
                             MonthlyRow(title: task.title,
-                                       schedule: task.scheduleText,
+                                       schedule: task.scheduleText.map {
+                                           task.isPaid(in: .now) ? "\($0) · ✓ paid this month" : $0
+                                       },
                                        price: task.price,
                                        currency: selectedCurrency)
                                 .contentShape(Rectangle())

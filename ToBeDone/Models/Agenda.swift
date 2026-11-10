@@ -35,7 +35,7 @@ struct AgendaItem: Identifiable, Hashable {
     let title: String
     let start: Date
     var durationMinutes: Int = 0     // only activities have a duration
-    var done: Bool = false           // monthly expenses are never "done"
+    var done: Bool = false           // monthly expenses: paid this month
     var price: Double? = nil         // monthly expenses
 
     var id: String { "\(kind.rawValue)-\(modelID.uuidString)-\(start.timeIntervalSince1970)" }
@@ -72,7 +72,7 @@ enum Agenda {
         for m in monthly {
             if let at = m.occurrence(on: day, calendar: cal) {
                 items.append(AgendaItem(kind: .monthly, modelID: m.id, title: m.title,
-                                        start: at, price: m.price))
+                                        start: at, done: m.isPaid(in: day, calendar: cal), price: m.price))
             }
         }
         for a in activities where cal.isDate(a.date, inSameDayAs: day) {

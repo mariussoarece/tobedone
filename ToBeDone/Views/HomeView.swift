@@ -70,7 +70,7 @@ struct HomeView: View {
                             detail: activitiesLeftToday > 0 ? "\(activitiesLeftToday) left" : nil) { DailyActivitiesView() }
                     HomeRow(title: Text("Confidence"), icon: "heart.fill", color: .pink,
                             detail: confidenceText) { ConfidenceTrackerView() }
-                    HomeRow(title: Text("Journalling"), icon: "book.closed.fill", color: .teal,
+                    HomeRow(title: Text("Journalling"), icon: "book.closed.fill", color: .orange,
                             detail: journalEntries.first?.mood.emoji) { JournalView() }
                     HomeRow(title: Text("Focus Test"), icon: "eye.fill", color: .blue,
                             detail: focusBestText) { FocusTestView() }
@@ -174,7 +174,7 @@ struct HomeView: View {
         } else {
             ForEach(todayAgenda) { item in
                 TodayRow(item: item, currency: selectedCurrency,
-                         onToggle: item.kind == .monthly ? nil : { withAnimation { toggle(item) } })
+                         onToggle: { withAnimation { toggle(item) } })
                     .contentShape(Rectangle())
                     .onTapGesture { destination = HomeDestination(item.kind) }
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 12))
@@ -206,7 +206,10 @@ struct HomeView: View {
             try? modelContext.save()
             syncActivityConfidence(for: activity.date)
         case .monthly:
-            return
+            // Paid for this month: it leaves Today and this month's reminder is skipped
+            guard let expense = monthlyItems.first(where: { $0.id == item.modelID }) else { return }
+            expense.paidMonth = expense.isPaid(in: item.start) ? nil : MonthlyTaskModel.monthKey(for: item.start)
+            try? modelContext.save()
         }
         ReminderScheduler.refresh(context: modelContext)
     }

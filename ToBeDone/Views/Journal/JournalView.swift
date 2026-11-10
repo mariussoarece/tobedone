@@ -28,7 +28,7 @@ struct JournalView: View {
             Text("Journalling")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .foregroundColor(.teal)
+                .foregroundColor(.orange)
                 .padding(.horizontal)
                 .padding(.top)
 
@@ -56,9 +56,15 @@ struct JournalView: View {
                     Button {
                         showNewEntry = true
                     } label: {
-                        Label("New Entry", systemImage: "square.and.pencil")
+                        // Pencil and paper in white, inside the blue button
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.and.pencil")
+                            Text("New Entry")
+                        }
+                        .foregroundStyle(.white)
                     }
                     .buttonStyle(.borderedProminent)
+                    .tint(.blue)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 

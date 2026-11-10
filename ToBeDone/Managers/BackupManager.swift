@@ -49,6 +49,7 @@ struct AppBackup: Codable {
     struct MonthlyB: Codable {
         var id: UUID; var title: String; var price: Double?
         var dayOfMonth: Int?; var timeOfDayMinutes: Int?
+        var paidMonth: String?
     }
     struct SubtaskB: Codable {
         var id: UUID; var title: String; var isCompleted: Bool?
@@ -109,7 +110,8 @@ enum BackupManager {
         }
         b.monthlyTasks = all(MonthlyTaskModel.self).map {
             AppBackup.MonthlyB(id: $0.id, title: $0.title, price: $0.price,
-                               dayOfMonth: $0.dayOfMonth, timeOfDayMinutes: $0.timeOfDayMinutes)
+                               dayOfMonth: $0.dayOfMonth, timeOfDayMinutes: $0.timeOfDayMinutes,
+                               paidMonth: $0.paidMonth)
         }
         b.projects = all(OtherTaskModel.self).map { p in
             AppBackup.ProjectB(id: p.id, title: p.title, isCompleted: p.isCompleted,
@@ -226,6 +228,7 @@ enum BackupManager {
         for mt in backup.monthlyTasks where !monthlyIds.contains(mt.id) {
             let m = MonthlyTaskModel(title: mt.title, price: mt.price ?? 0, dayOfMonth: mt.dayOfMonth)
             m.timeOfDayMinutes = mt.timeOfDayMinutes
+            m.paidMonth = mt.paidMonth
             m.id = mt.id
             context.insert(m)
             added += 1

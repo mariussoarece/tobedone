@@ -73,6 +73,7 @@ struct TodayProvider: TimelineProvider {
         let hourStart = cal.dateInterval(of: .hour, for: date)?.start ?? date
         return snapshot.items
             .filter { cal.isDate($0.start, inSameDayAs: date) && ($0.start >= hourStart || $0.end > date) }
+            .filter { !$0.done }   // ticked off (or paid) items leave the widget
             .sorted { $0.start < $1.start }
     }
 
