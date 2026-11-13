@@ -22,6 +22,9 @@ class MonthlyTaskModel: Identifiable {
     var timeOfDayMinutes: Int? = nil
     /// The month it was last marked as paid, e.g. "2026-11" (nil = never)
     var paidMonth: String? = nil
+    /// Finished for good (no longer paid every month): moved to Completed,
+    /// no reminders, not counted in the totals
+    var isCompleted: Bool = false
 
     init(title: String, price: Double = 0.0, dayOfMonth: Int? = nil, hour: Int = 10, minute: Int = 0) {
         self.title = title

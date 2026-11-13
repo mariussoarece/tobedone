@@ -56,7 +56,7 @@ struct MonthlyTasksView: View {
                             ForEach(1...28, id: \.self) { Text("\($0)").tag($0) }
                         }
 
-                        DatePicker("Time", selection: $newTime, displayedComponents: .hourAndMinute)
+                        DatePicker("Notification Time", selection: $newTime, displayedComponents: .hourAndMinute)
 
                         Button("Add Task") {
                             addTask()
@@ -65,29 +65,28 @@ struct MonthlyTasksView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
-                    Section(header: Text("Monthly Expenses – tap to mark paid, hold to edit")) {
-                        ForEach(sortedTasks, id: \.id) { task in
-                            MonthlyRow(title: task.title,
-                                       schedule: task.scheduleText.map {
-                                           task.isPaid(in: .now) ? "\($0) · ✓ paid this month" : $0
-                                       },
-                                       price: task.price,
-                                       currency: selectedCurrency)
-                                .contentShape(Rectangle())
-                                .onTapGesture { togglePaid(task) }
-                                .editAction { editing = task }   // swipe right or touch and hold
+                    Section(header: Text("Monthly Expenses – tap to mark as paid, hold to edit")) {
+                        ForEach(activeTasks, id: \.id) { task in
+                            monthlyRow(task)
                         }
-                        .onDelete(perform: deleteTask)
                         .id(listRevision)
                     }
 
                     Section {
+                        // Total: every active expense (completed ones are not counted)
                         HStack {
                             Text("Total:")
                                 .fontWeight(.bold)
                             Spacer()
                             Text("\(totalPrice(), specifier: "%.2f") \(selectedCurrency)")
                                 .bold().foregroundColor(.blue)
+                        }
+                        // The ones marked as paid this month are deducted
+                        HStack {
+                            Text("Still to pay this month:")
+                            Spacer()
+                            Text("\(stillToPay(), specifier: "%.2f") \(selectedCurrency)")
+                                .foregroundColor(.orange)
                         }
                     }
                     HStack{
@@ -102,6 +101,14 @@ struct MonthlyTasksView: View {
                         }
                         .buttonStyle(.bordered)
                         .padding(.horizontal)
+                    }
+
+                    // Finished for good: no reminders, not in the totals
+                    Section(header: Text("Completed")) {
+                        ForEach(completedTasks, id: \.id) { task in
+                            monthlyRow(task)
+                        }
+                        .id(listRevision)
                     }
                 }
                 .scrollDismissesKeyboard(.interactively)
@@ -156,6 +163,7 @@ struct MonthlyTasksView: View {
             .navigationTitle("")
             }
         }
+        .firstTimeTip("monthly", title: "💡 Tip", message: "Reduce daily money decisions to fight financial fatigue. Pick one fixed day each month to pay all your bills: every separate payment is another moment of stress and wasted attention.")
     }
 
     private func addTask() {
@@ -201,17 +209,66 @@ struct MonthlyTasksView: View {
         }
     }
 
-    private func deleteTask(at offsets: IndexSet) {
-        let sorted = sortedTasks
-        for index in offsets {
-            modelContext.delete(sorted[index])
-        }
-        try? modelContext.save()
-        ReminderScheduler.refresh(context: modelContext)
+    private var activeTasks: [MonthlyTaskModel] { sortedTasks.filter { !$0.isCompleted } }
+    private var completedTasks: [MonthlyTaskModel] { sortedTasks.filter { $0.isCompleted } }
+
+    /// Tap: paid this month (or not) – it stays in the list with "✓ paid this month".
+    /// Swipe left: Delete or Complete (finished for good, moves to Completed).
+    /// Swipe right or touch and hold: Edit.
+    private func monthlyRow(_ task: MonthlyTaskModel) -> some View {
+        let paid = task.isPaid(in: .now)
+        return MonthlyRow(title: task.title,
+                          schedule: task.isCompleted ? nil : task.scheduleText.map {
+                              paid ? "\($0) · ✓ paid this month" : $0
+                          },
+                          price: task.price,
+                          currency: selectedCurrency,
+                          paid: task.isCompleted)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if !task.isCompleted { togglePaid(task) }
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) {
+                    delete(task)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                Button {
+                    toggleCompleted(task)
+                } label: {
+                    Label(task.isCompleted ? "Restore" : "Complete",
+                          systemImage: task.isCompleted ? "arrow.uturn.backward" : "checkmark")
+                }
+                .tint(task.isCompleted ? .gray : .green)
+            }
+            .editAction { editing = task }   // swipe right or touch and hold
     }
 
+    /// Finished for good, or back to the active list
+    private func toggleCompleted(_ task: MonthlyTaskModel) {
+        task.isCompleted.toggle()
+        try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)
+        listRevision += 1
+        Toast.show(task.isCompleted ? "Completed" : "Restored")
+    }
+
+    private func delete(_ task: MonthlyTaskModel) {
+        modelContext.delete(task)
+        try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)
+        listRevision += 1
+    }
+
+    /// Every active expense; completed ones are not counted
     private func totalPrice() -> Double {
-        monthlyTasks.reduce(0) { $0 + $1.price }
+        activeTasks.reduce(0) { $0 + $1.price }
+    }
+
+    /// Active expenses not yet marked as paid this month
+    private func stillToPay() -> Double {
+        activeTasks.filter { !$0.isPaid(in: .now) }.reduce(0) { $0 + $1.price }
     }
 
     private func hideKeyboard() {
@@ -342,7 +399,7 @@ struct EditMonthlyTaskSheet: View {
                     Picker("Day of month", selection: $day) {
                         ForEach(1...28, id: \.self) { Text("\($0)").tag($0) }
                     }
-                    DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute)
+                    DatePicker("Notification Time", selection: $time, displayedComponents: .hourAndMinute)
                 } footer: {
                     Text("You get a reminder every month on this day and time. Days 29–31 aren't offered because not every month has them.")
                 }
@@ -376,11 +433,14 @@ private struct MonthlyRow: View {
     let schedule: String?
     let price: Double
     let currency: String
+    var paid: Bool = false
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
+                    .strikethrough(paid)
+                    .foregroundStyle(paid ? Color.secondary : Color.primary)
                 // "Every month on day 5 at 10:00"
                 Text(schedule ?? "No day set – tap to choose one")
                     .font(.caption)

@@ -192,31 +192,50 @@ struct StartEndRows: View {
     @Binding var hasEnd: Bool
     @Binding var end: Date
 
+    /// Which calendar is open below its row (only one at a time)
+    @State private var open: Which?
+    private enum Which { case start, end }
+
     var body: some View {
         Toggle("Start date", isOn: $hasStart)
         if hasStart {
-            HStack {
-                Text("Starts")
-                Spacer()
-                picker($start, from: .distantPast)
+            dateRow("Starts", date: start, which: .start)
+            if open == .start {
+                calendar($start, from: .distantPast)
             }
         }
         Toggle("End date", isOn: $hasEnd)
         if hasEnd {
-            HStack {
-                Text("Ends")
-                Spacer()
-                picker($end, from: hasStart ? start : .distantPast)
+            dateRow("Ends", date: end, which: .end)
+            if open == .end {
+                calendar($end, from: hasStart ? start : .distantPast)
             }
         }
     }
 
-    /// Kept at full size, so both dates always show the same way ("13 Nov 2026")
-    /// instead of iOS switching one of them to "20/11/2026" when space is short.
-    private func picker(_ value: Binding<Date>, from earliest: Date) -> some View {
+    /// The date is written by the app itself ("20 Nov 2026, 18:00"), so Starts and
+    /// Ends always look the same. Tap it to open the calendar with the time below.
+    private func dateRow(_ label: String, date: Date, which: Which) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Button {
+                withAnimation { open = (open == which) ? nil : which }
+            } label: {
+                Text(date, format: .dateTime.day().month(.abbreviated).year().hour().minute())
+                    .foregroundStyle(open == which ? Color.accentColor : Color.primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.borderless)
+        }
+    }
+
+    private func calendar(_ value: Binding<Date>, from earliest: Date) -> some View {
         DatePicker("", selection: value, in: earliest..., displayedComponents: [.date, .hourAndMinute])
+            .datePickerStyle(.graphical)
             .labelsHidden()
-            .fixedSize()
     }
 
     /// Default times: start today at 9:00, end in a week at 18:00

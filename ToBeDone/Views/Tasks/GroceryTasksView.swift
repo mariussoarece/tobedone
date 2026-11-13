@@ -75,6 +75,7 @@ struct GroceryTasksView: View {
 
             }
         }
+        .firstTimeTip("grocery", title: "💡 Tip", message: "Never go grocery shopping when you're hungry – you'll buy more than you need.")
     }
 
     @ViewBuilder

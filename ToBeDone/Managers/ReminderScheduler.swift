@@ -197,7 +197,7 @@ enum ReminderScheduler {
     private static func monthlyRequests(monthly: [MonthlyTaskModel]) -> [Pending] {
         let currency = UserDefaults.standard.string(forKey: "selectedCurrency") ?? "USD"
         return monthly.compactMap { m -> Pending? in
-            guard let day = m.dayOfMonth, var next = m.nextOccurrence() else { return nil }
+            guard !m.isCompleted, let day = m.dayOfMonth, var next = m.nextOccurrence() else { return nil }
             // Already paid this month: this month's reminder is skipped. A one-off
             // reminder is set for next month instead; the repeating one comes back
             // the next time the app is opened after that.
