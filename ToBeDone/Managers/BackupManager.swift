@@ -53,9 +53,11 @@ struct AppBackup: Codable {
     }
     struct SubtaskB: Codable {
         var id: UUID; var title: String; var isCompleted: Bool?
+        var startDate: Date? = nil; var endDate: Date? = nil
     }
     struct ProjectB: Codable {
         var id: UUID; var title: String; var isCompleted: Bool?; var subtasks: [SubtaskB]?
+        var startDate: Date? = nil; var endDate: Date? = nil
     }
     struct GroceryB: Codable {
         var id: UUID; var name: String; var isBought: Bool?
@@ -115,7 +117,11 @@ enum BackupManager {
         }
         b.projects = all(OtherTaskModel.self).map { p in
             AppBackup.ProjectB(id: p.id, title: p.title, isCompleted: p.isCompleted,
-                  subtasks: p.subtasks.map { AppBackup.SubtaskB(id: $0.id, title: $0.title, isCompleted: $0.isCompleted) })
+                  subtasks: p.subtasks.map {
+                      AppBackup.SubtaskB(id: $0.id, title: $0.title, isCompleted: $0.isCompleted,
+                                         startDate: $0.startDate, endDate: $0.endDate)
+                  },
+                  startDate: p.startDate, endDate: p.endDate)
         }
         b.groceryItems = all(GroceryItemModel.self).map {
             AppBackup.GroceryB(id: $0.id, name: $0.name, isBought: $0.isBought)
@@ -236,11 +242,17 @@ enum BackupManager {
 
         let projectIds = ids(OtherTaskModel.self) { $0.id }
         for p in backup.projects where !projectIds.contains(p.id) {
-            let subs = (p.subtasks ?? []).map {
-                SubtaskModel(id: $0.id, title: $0.title, isCompleted: $0.isCompleted ?? false)
+            let subs = (p.subtasks ?? []).map { s -> SubtaskModel in
+                let m = SubtaskModel(id: s.id, title: s.title, isCompleted: s.isCompleted ?? false)
+                m.startDate = s.startDate
+                m.endDate = s.endDate
+                return m
             }
-            context.insert(OtherTaskModel(id: p.id, title: p.title,
-                                          isCompleted: p.isCompleted ?? false, subtasks: subs))
+            let project = OtherTaskModel(id: p.id, title: p.title,
+                                         isCompleted: p.isCompleted ?? false, subtasks: subs)
+            project.startDate = p.startDate
+            project.endDate = p.endDate
+            context.insert(project)
             added += 1
         }
 

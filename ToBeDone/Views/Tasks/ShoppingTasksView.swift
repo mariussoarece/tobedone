@@ -21,6 +21,7 @@ struct ShoppingTasksView: View {
     @State private var editingItem: ShoppingItemModel?
     @State private var editedPrice: String = ""
     @State private var showEditPriceSheet = false
+    @State private var editingDetails: ShoppingItemModel?
 
     var body: some View {
         Group {
@@ -32,7 +33,7 @@ struct ShoppingTasksView: View {
                     .foregroundColor(.red)
                     .padding(.horizontal)
                     .padding(.top)
-            KeyboardDismissWrapper {
+            // Plain Form (no KeyboardDismissWrapper), so Edit windows and the list update normally
                 Form {
                     Section(header: Text("Add New Item")) {
                         TextField("Item Name", text: $newItemName)
@@ -85,6 +86,7 @@ struct ShoppingTasksView: View {
                                 editedPrice = String(item.price)
                             }
                             .contentShape(Rectangle())
+                            .editAction { editingDetails = item }   // swipe right or touch and hold
 
                         }
                     }
@@ -174,12 +176,20 @@ struct ShoppingTasksView: View {
                             print("Importer error:", error)
                         }
                     }
-
+                .scrollDismissesKeyboard(.interactively)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") {
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
+                    }
                 }
             .navigationBarTitleDisplayMode(.inline) // optional
             .navigationTitle("")
             }
         }
+        .sheet(item: $editingDetails) { EditShoppingItemSheet(item: $0) }
         .sheet(item: $editingItem) { item in
             ScrollView {
                 VStack(spacing: 20) {

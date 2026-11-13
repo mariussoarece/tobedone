@@ -39,8 +39,11 @@ enum ReminderScheduler {
     private static let monthlyPrefix = "monthly-"
     private static let taskEarlyPrefix = "taskEarly-"
     private static let activityEarlyPrefix = "activityEarly-"
+    private static let projectStartPrefix = "projectStart-"
+    private static let projectEndPrefix = "projectEnd-"
     private static var managedPrefixes: [String] {
-        [summaryPrefix, activityPrefix, monthlyPrefix, taskEarlyPrefix, activityEarlyPrefix]
+        [summaryPrefix, activityPrefix, monthlyPrefix, taskEarlyPrefix, activityEarlyPrefix,
+         projectStartPrefix, projectEndPrefix]
     }
     private static let legacyIdentifier = "activityReminder"   // repeating reminder from older versions
     private static let daysAhead = 7
@@ -82,6 +85,8 @@ enum ReminderScheduler {
         }
         requests += monthlyRequests(monthly: monthly)
         requests += earlyRequests(tasks: tasks, activities: activities)
+        let projects = (try? context.fetch(FetchDescriptor<OtherTaskModel>())) ?? []
+        requests += projectRequests(projects: projects)
 
         // Soonest first, within what iOS allows
         let chosen = requests.sorted { $0.fire < $1.fire }.prefix(maxManaged).map(\.request)
@@ -258,5 +263,41 @@ enum ReminderScheduler {
         let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
         return UNNotificationRequest(identifier: id, content: content,
                                      trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false))
+    }
+
+    // MARK: - Projects
+
+    /// A notification when an unfinished project starts and when it should be finished.
+    private static func projectRequests(projects: [OtherTaskModel]) -> [Pending] {
+        let now = Date()
+        var result: [Pending] = []
+        for p in projects where !p.isCompleted {
+            if let start = p.startDate, start > now {
+                result.append(projectRequest(id: projectStartPrefix + p.id.uuidString,
+                                             title: "Project starts",
+                                             body: "\(p.title) starts now.", at: start))
+            }
+            if let end = p.endDate, end > now {
+                let open = p.subtasks.filter { !$0.isCompleted }.count
+                let left = open > 0 ? " \(open) subtask\(open == 1 ? "" : "s") still open." : ""
+                result.append(projectRequest(id: projectEndPrefix + p.id.uuidString,
+                                             title: "Project deadline",
+                                             body: "\(p.title) should be finished now.\(left)", at: end))
+            }
+        }
+        return result
+    }
+
+    private static func projectRequest(id: String, title: String, body: String, at date: Date) -> Pending {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.threadIdentifier = "projects"
+        content.interruptionLevel = .active
+        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        return Pending(fire: date, request: UNNotificationRequest(
+            identifier: id, content: content,
+            trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)))
     }
 }

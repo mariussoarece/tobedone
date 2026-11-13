@@ -26,6 +26,7 @@ struct DailyActivitiesView: View {
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: DemoData.now)
 
     @State private var showingAddSheet = false
+    @State private var editingActivity: ActivityItem?
     @State private var exportURL: URL?
     @State private var showingImporter = false
     @State private var viewMode: ViewMode
@@ -106,6 +107,13 @@ struct DailyActivitiesView: View {
                 syncConfidenceForDays(affected)
                 ReminderScheduler.refresh(context: modelContext)
                 Toast.show(items.count == 1 ? "Activity added" : "\(items.count) activities added")
+            }
+        }
+        .sheet(item: $editingActivity) { item in
+            EditActivitySheet(item: item) { oldDate, newDate in
+                // The day's score can change if the activity moved to another day
+                syncConfidenceForDays([Calendar.current.startOfDay(for: oldDate),
+                                       Calendar.current.startOfDay(for: newDate)])
             }
         }
         .fileImporter(
@@ -190,6 +198,7 @@ struct DailyActivitiesView: View {
                             syncConfidenceForDay(selectedDate)
                             ReminderScheduler.refresh(context: modelContext)
                         })
+                        .editAction { editingActivity = item }   // swipe right or touch and hold
 
                     }
                     .onDelete { indexSet in

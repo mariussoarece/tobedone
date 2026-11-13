@@ -11,6 +11,9 @@ class SubtaskModel: Identifiable, Hashable {
     var id: UUID = UUID()
     var title: String
     var isCompleted: Bool = false
+    /// Optional start and end (new in 6.x; older subtasks have none)
+    var startDate: Date? = nil
+    var endDate: Date? = nil
 
     init(id: UUID = UUID(), title: String, isCompleted: Bool = false) {
             self.id = id
@@ -33,6 +36,9 @@ class OtherTaskModel: Identifiable {
     var title: String
     var subtasks: [SubtaskModel] = []
     var isCompleted: Bool = false  // ✅ New
+    /// Optional start and end; you get a notification at each (new in 6.x)
+    var startDate: Date? = nil
+    var endDate: Date? = nil
 
     init(
         id: UUID = UUID(),
