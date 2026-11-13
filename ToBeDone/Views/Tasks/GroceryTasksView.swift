@@ -47,7 +47,7 @@ struct GroceryTasksView: View {
                     }
 
                     // 🔸 Grocery Items Not Bought Yet
-                    Section(header: Text("Grocery List")) {
+                    Section(header: Text("Grocery List – tap when bought, hold to edit")) {
                         ForEach(sortedItems().filter { !$0.isBought }, id: \.id) { item in
                             groceryRow(item)
                         }

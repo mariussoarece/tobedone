@@ -65,7 +65,7 @@ struct MonthlyTasksView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
-                    Section(header: Text("Monthly Tasks - Tap to edit, swipe to delete")) {
+                    Section(header: Text("Monthly Expenses – tap to mark paid, hold to edit")) {
                         ForEach(sortedTasks, id: \.id) { task in
                             MonthlyRow(title: task.title,
                                        schedule: task.scheduleText.map {
@@ -74,7 +74,8 @@ struct MonthlyTasksView: View {
                                        price: task.price,
                                        currency: selectedCurrency)
                                 .contentShape(Rectangle())
-                                .onTapGesture { editing = task }
+                                .onTapGesture { togglePaid(task) }
+                                .editAction { editing = task }   // swipe right or touch and hold
                         }
                         .onDelete(perform: deleteTask)
                         .id(listRevision)
@@ -174,6 +175,16 @@ struct MonthlyTasksView: View {
         newTaskTitle = ""
         newTaskPrice = ""
         newTime = Self.tenOClock
+    }
+
+    /// Paid for this month (or not): it leaves Today and the widget, and this
+    /// month's reminder is skipped
+    private func togglePaid(_ task: MonthlyTaskModel) {
+        task.paidMonth = task.isPaid(in: .now) ? nil : MonthlyTaskModel.monthKey(for: .now)
+        try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)
+        listRevision += 1
+        if task.isPaid(in: .now) { Toast.show("Paid this month") }
     }
 
     /// Default time for a new monthly expense: 10:00
@@ -305,7 +316,7 @@ struct EditMonthlyTaskSheet: View {
         self.task = task
         self.onSave = onSave
         _title = State(initialValue: task.title)
-        _price = State(initialValue: task.price == 0 ? "" : task.price.formatted(.number.precision(.fractionLength(0...2)).grouping(.never)))
+        _price = State(initialValue: task.price.formatted(.number.precision(.fractionLength(0...2)).grouping(.never)))
         _day = State(initialValue: task.dayOfMonth ?? min(Calendar.current.component(.day, from: .now), 28))
         _time = State(initialValue: Calendar.current.date(bySettingHour: task.hour, minute: task.minute,
                                                           second: 0, of: .now) ?? .now)
@@ -320,6 +331,11 @@ struct EditMonthlyTaskSheet: View {
                         TextField("Price", text: $price)
                             .keyboardType(.decimalPad)
                         Text(selectedCurrency).foregroundStyle(.secondary)
+                    }
+                    if price.decimalValue == nil {
+                        Text("Please enter a price")
+                            .font(.footnote)
+                            .foregroundStyle(.red)
                     }
                 }
                 Section {
@@ -338,13 +354,13 @@ struct EditMonthlyTaskSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         let trimmed = title.trimmingCharacters(in: .whitespaces)
-                        guard !trimmed.isEmpty else { return }
+                        guard !trimmed.isEmpty, let newPrice = price.decimalValue else { return }
                         let t = Calendar.current.dateComponents([.hour, .minute], from: time)
-                        onSave(trimmed, price.decimalValue ?? 0, day, (t.hour ?? 10) * 60 + (t.minute ?? 0))
+                        onSave(trimmed, newPrice, day, (t.hour ?? 10) * 60 + (t.minute ?? 0))
                         dismiss()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || price.decimalValue == nil)
                 }
             }
         }

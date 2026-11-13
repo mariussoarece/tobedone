@@ -69,7 +69,7 @@ struct ShoppingTasksView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
-                    Section(header: Text("Shopping List")) {
+                    Section(header: Text("Shopping List – tap to complete, hold to edit")) {
                         ForEach(shoppingItems.filter { !$0.isCompleted }) { item in
                             HStack {
                                 VStack(alignment: .leading) {
@@ -193,12 +193,17 @@ struct ShoppingTasksView: View {
         .sheet(item: $editingItem) { item in
             ScrollView {
                 VStack(spacing: 20) {
-                    Text("Edit Price")
+                    Text("Final Price")
                         .font(.title2)
                         .bold()
 
                     Text(item.name)
                         .font(.headline)
+
+                    Text("Change it if you paid a different amount, then tap Complete.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
 
                     TextField("Price", text: $editedPrice)
                         .keyboardType(.decimalPad)
@@ -206,7 +211,7 @@ struct ShoppingTasksView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
 
-                    Button("Confirm") {
+                    Button("Complete") {
                         if let newPrice = editedPrice.decimalValue {
                             item.price = newPrice
                         }
@@ -224,7 +229,7 @@ struct ShoppingTasksView: View {
                 }
                 .padding()
             }
-            .presentationDetents([.fraction(0.35)])
+            .presentationDetents([.fraction(0.42)])
             .presentationDragIndicator(.visible)
         }
     }

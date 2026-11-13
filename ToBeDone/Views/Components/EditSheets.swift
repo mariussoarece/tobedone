@@ -195,13 +195,28 @@ struct StartEndRows: View {
     var body: some View {
         Toggle("Start date", isOn: $hasStart)
         if hasStart {
-            DatePicker("Starts", selection: $start, displayedComponents: [.date, .hourAndMinute])
+            HStack {
+                Text("Starts")
+                Spacer()
+                picker($start, from: .distantPast)
+            }
         }
         Toggle("End date", isOn: $hasEnd)
         if hasEnd {
-            DatePicker("Ends", selection: $end, in: (hasStart ? start : .distantPast)...,
-                       displayedComponents: [.date, .hourAndMinute])
+            HStack {
+                Text("Ends")
+                Spacer()
+                picker($end, from: hasStart ? start : .distantPast)
+            }
         }
+    }
+
+    /// Kept at full size, so both dates always show the same way ("13 Nov 2026")
+    /// instead of iOS switching one of them to "20/11/2026" when space is short.
+    private func picker(_ value: Binding<Date>, from earliest: Date) -> some View {
+        DatePicker("", selection: value, in: earliest..., displayedComponents: [.date, .hourAndMinute])
+            .labelsHidden()
+            .fixedSize()
     }
 
     /// Default times: start today at 9:00, end in a week at 18:00
@@ -308,6 +323,41 @@ struct EditSubtaskSheet: View {
         try? modelContext.save()
         ReminderScheduler.refresh(context: modelContext)   // start and end notifications
         Toast.show("Subtask saved")
+    }
+}
+
+/// "New Subtask": the title typed in the project, plus optional start and end.
+struct NewSubtaskSheet: View {
+    var onAdd: (String, Date?, Date?) -> Void
+
+    @State private var title: String
+    @State private var hasStart = false
+    @State private var start = StartEndRows.defaultStart
+    @State private var hasEnd = false
+    @State private var end = StartEndRows.defaultEnd
+
+    init(title: String, onAdd: @escaping (String, Date?, Date?) -> Void) {
+        self.onAdd = onAdd
+        _title = State(initialValue: title)
+    }
+
+    var body: some View {
+        EditForm(title: "New Subtask", canSave: !trimmed(title).isEmpty, onSave: add) {
+            Section {
+                TextField("Subtask", text: $title)
+            }
+            Section {
+                StartEndRows(hasStart: $hasStart, start: $start, hasEnd: $hasEnd, end: $end)
+            } footer: {
+                Text("Optional. While the subtask is open, you get a notification when it starts and when it should be finished.")
+            }
+        }
+    }
+
+    private func add() {
+        onAdd(trimmed(title),
+              hasStart ? start : nil,
+              hasEnd ? max(end, hasStart ? start : end) : nil)
     }
 }
 

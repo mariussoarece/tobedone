@@ -15,6 +15,7 @@ struct OtherTasksView: View {
     @State private var showingImporter = false
     @State private var editingProject: OtherTaskModel?
     @State private var editingSubtask: SubtaskModel?
+    @State private var newSubtask: NewSubtaskRequest?
     @State private var newHasStart = false
     @State private var newStart = StartEndRows.defaultStart
     @State private var newHasEnd = false
@@ -64,12 +65,12 @@ struct OtherTasksView: View {
                     }
 
                     // 🔸 Active Tasks Section
-                    Section(header: Text("Tasks with Subtasks")) {
+                    Section(header: Text("Projects – tap to complete, hold to edit")) {
                         ForEach(sortedTasks().filter { !$0.isCompleted }, id: \.id) { task in
                             SubtaskSectionView(
                                 task: task,
                                 onAdd: { newSubtaskText in
-                                    addSubtask(to: task, subtaskTitle: newSubtaskText)
+                                    newSubtask = NewSubtaskRequest(project: task, title: newSubtaskText)
                                 },
                                 onToggleCompletion: {
                                     toggleTaskCompletion(task)
@@ -99,7 +100,7 @@ struct OtherTasksView: View {
                                 SubtaskSectionView(
                                     task: task,
                                     onAdd: { newSubtaskText in
-                                        addSubtask(to: task, subtaskTitle: newSubtaskText)
+                                        newSubtask = NewSubtaskRequest(project: task, title: newSubtaskText)
                                     },
                                     onToggleCompletion: {
                                         toggleTaskCompletion(task)
@@ -153,14 +154,22 @@ struct OtherTasksView: View {
             .navigationTitle("")
             .sheet(item: $editingProject) { EditProjectSheet(project: $0) }
             .sheet(item: $editingSubtask) { EditSubtaskSheet(subtask: $0) }
+            .sheet(item: $newSubtask) { request in
+                NewSubtaskSheet(title: request.title) { title, start, end in
+                    addSubtask(to: request.project, subtaskTitle: title, start: start, end: end)
+                }
+            }
             }
         }
     }
 
-    private func addSubtask(to task: OtherTaskModel, subtaskTitle: String) {
-        let newSubtask = SubtaskModel(title: subtaskTitle)
-        task.subtasks.append(newSubtask)
+    private func addSubtask(to task: OtherTaskModel, subtaskTitle: String, start: Date?, end: Date?) {
+        let subtask = SubtaskModel(title: subtaskTitle)
+        subtask.startDate = start
+        subtask.endDate = end
+        task.subtasks.append(subtask)
         try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)   // start and end notifications
         Toast.show("Subtask added")
     }
 
@@ -304,4 +313,11 @@ struct OtherTasksView: View {
         }
         topVC.present(activityVC, animated: true)
     }
+}
+
+/// Which project a new subtask goes into, and the title typed so far
+struct NewSubtaskRequest: Identifiable {
+    let id = UUID()
+    let project: OtherTaskModel
+    let title: String
 }

@@ -63,7 +63,7 @@ struct DueTasksView: View {
                         }
 
                         // MARK: Due Tasks
-                        Section(header: Text("Due Tasks")) {
+                        Section(header: Text("Due Tasks – tap to complete, hold to edit")) {
                             ForEach(sortedTasks().filter { !$0.isCompleted }, id: \.id) { task in
                                 taskRow(task)
                             }

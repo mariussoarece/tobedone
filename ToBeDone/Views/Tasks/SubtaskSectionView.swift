@@ -46,8 +46,9 @@ struct SubtaskSectionView: View {
 
             HStack {
                 TextField("New Subtask", text: $localSubtask)
+                // Opens "New Subtask" with this title, where start and end can be set
                 Button("Add") {
-                    if !localSubtask.isEmpty {
+                    if !localSubtask.trimmingCharacters(in: .whitespaces).isEmpty {
                         onAdd(localSubtask)
                         localSubtask = ""
                     }
