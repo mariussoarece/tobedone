@@ -69,7 +69,7 @@ enum Agenda {
             items.append(AgendaItem(kind: .task, modelID: t.id, title: t.title,
                                     start: t.dueDate, done: t.isCompleted))
         }
-        for m in monthly {
+        for m in monthly where !m.isCompleted {
             if let at = m.occurrence(on: day, calendar: cal) {
                 items.append(AgendaItem(kind: .monthly, modelID: m.id, title: m.title,
                                         start: at, done: m.isPaid(in: day, calendar: cal), price: m.price))
