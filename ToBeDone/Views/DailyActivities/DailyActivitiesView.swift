@@ -110,10 +110,9 @@ struct DailyActivitiesView: View {
             }
         }
         .sheet(item: $editingActivity) { item in
-            EditActivitySheet(item: item) { oldDate, newDate in
-                // The day's score can change if the activity moved to another day
-                syncConfidenceForDays([Calendar.current.startOfDay(for: oldDate),
-                                       Calendar.current.startOfDay(for: newDate)])
+            EditActivitySheet(item: item) { days in
+                // The days' scores can change when activities move to other days
+                syncConfidenceForDays(days)
             }
         }
         .fileImporter(

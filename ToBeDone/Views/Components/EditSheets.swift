@@ -295,6 +295,8 @@ struct EditSubtaskSheet: View {
             }
             Section {
                 StartEndRows(hasStart: $hasStart, start: $start, hasEnd: $hasEnd, end: $end)
+            } footer: {
+                Text("While the subtask is open, you get a notification when it starts and when it should be finished.")
             }
         }
     }
@@ -304,18 +306,21 @@ struct EditSubtaskSheet: View {
         subtask.startDate = hasStart ? start : nil
         subtask.endDate = hasEnd ? max(end, hasStart ? start : end) : nil
         try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)   // start and end notifications
         Toast.show("Subtask saved")
     }
 }
 
 // MARK: - Daily Routine
 
-/// Edits one activity. For a repeating activity, only this day changes.
+/// Edits one activity. For a repeating activity, Save asks whether to change
+/// only this day, this and the following days, or every day in the series.
 struct EditActivitySheet: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     let item: ActivityItem
-    /// Called with the old and the new start, after saving
-    var onSaved: (Date, Date) -> Void = { _, _ in }
+    /// Called after saving with the days whose activities changed (for the Confidence score)
+    var onSaved: (Set<Date>) -> Void = { _ in }
 
     @State private var name: String
     @State private var details: String
@@ -323,8 +328,11 @@ struct EditActivitySheet: View {
     @State private var duration: Double
     @State private var remindBefore: Bool
     @State private var remindMinutes: Int
+    @State private var askScope = false
 
-    init(item: ActivityItem, onSaved: @escaping (Date, Date) -> Void = { _, _ in }) {
+    enum Scope { case thisOne, following, all }
+
+    init(item: ActivityItem, onSaved: @escaping (Set<Date>) -> Void = { _ in }) {
         self.item = item
         self.onSaved = onSaved
         _name = State(initialValue: item.name)
@@ -335,34 +343,92 @@ struct EditActivitySheet: View {
         _remindMinutes = State(initialValue: item.reminderMinutes ?? 30)
     }
 
+    /// Every activity created by the same repeat (only this one if it doesn't repeat)
+    private var series: [ActivityItem] {
+        guard let sid = item.seriesId else { return [item] }
+        let all = (try? modelContext.fetch(FetchDescriptor<ActivityItem>())) ?? []
+        let members = all.filter { $0.seriesId == sid }
+        return members.isEmpty ? [item] : members
+    }
+
     var body: some View {
-        EditForm(title: "Edit Activity", canSave: !trimmed(name).isEmpty, onSave: save) {
-            Section("Activity") {
-                TextField("Name", text: $name)
-                TextField("Description", text: $details, axis: .vertical).lineLimit(1...3)
-                DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
-                Stepper(value: $duration, in: 0...480, step: 5) { Text("Duration: \(Int(duration)) min") }
-            }
-            Section {
-                ReminderBeforeRows(isOn: $remindBefore, minutesBefore: $remindMinutes, start: date)
-            } footer: {
-                if item.seriesId != nil {
-                    Text("This activity repeats: only this day is changed.")
+        NavigationStack {
+            Form {
+                Section("Activity") {
+                    TextField("Name", text: $name)
+                    TextField("Description", text: $details, axis: .vertical).lineLimit(1...3)
+                    DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                    Stepper(value: $duration, in: 0...480, step: 5) { Text("Duration: \(Int(duration)) min") }
                 }
+                Section {
+                    ReminderBeforeRows(isOn: $remindBefore, minutesBefore: $remindMinutes, start: date)
+                } footer: {
+                    if item.seriesId != nil {
+                        Text("This activity repeats. When you save, you can change only this day, this and the following days, or all of them.")
+                    }
+                }
+            }
+            .navigationTitle("Edit Activity")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if series.count > 1 {
+                            askScope = true
+                        } else {
+                            save(.thisOne)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(trimmed(name).isEmpty)
+                }
+            }
+            .confirmationDialog("This activity repeats", isPresented: $askScope, titleVisibility: .visible) {
+                Button("Only this one") { save(.thisOne) }
+                Button("This and following") { save(.following) }
+                Button("All in the series") { save(.all) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Which days should change?")
             }
         }
     }
 
-    private func save() {
+    private func save(_ scope: Scope) {
+        let cal = Calendar.current
         let oldDate = item.date
-        item.name = trimmed(name)
-        item.details = details
-        item.date = date
-        item.durationMinutes = Int(duration)
-        item.reminderMinutes = remindBefore && remindMinutes > 0 ? remindMinutes : nil
+
+        let targets: [ActivityItem]
+        switch scope {
+        case .thisOne: targets = [item]
+        // This day and the later ones; earlier days (and what was ticked off) stay as they were
+        case .following: targets = series.filter { $0.date >= oldDate }
+        case .all: targets = series
+        }
+
+        // A moved day or time moves every chosen activity the same way:
+        // the same number of days, and the new time of day on each one.
+        let dayShift = cal.dateComponents([.day], from: cal.startOfDay(for: oldDate),
+                                          to: cal.startOfDay(for: date)).day ?? 0
+        let time = cal.dateComponents([.hour, .minute], from: date)
+
+        var changedDays = Set<Date>()
+        for a in targets {
+            changedDays.insert(cal.startOfDay(for: a.date))
+            let movedDay = cal.date(byAdding: .day, value: dayShift, to: cal.startOfDay(for: a.date)) ?? a.date
+            a.date = cal.date(bySettingHour: time.hour ?? 0, minute: time.minute ?? 0, second: 0, of: movedDay) ?? a.date
+            a.name = trimmed(name)
+            a.details = details
+            a.durationMinutes = Int(duration)
+            a.reminderMinutes = remindBefore && remindMinutes > 0 ? remindMinutes : nil
+            changedDays.insert(cal.startOfDay(for: a.date))
+        }
+
         try? modelContext.save()
         ReminderScheduler.refresh(context: modelContext)
-        onSaved(oldDate, date)
-        Toast.show("Activity saved")
+        onSaved(changedDays)
+        Toast.show(targets.count == 1 ? "Activity saved" : "\(targets.count) activities saved")
+        dismiss()
     }
 }

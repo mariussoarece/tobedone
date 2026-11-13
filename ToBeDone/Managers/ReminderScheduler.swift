@@ -41,9 +41,11 @@ enum ReminderScheduler {
     private static let activityEarlyPrefix = "activityEarly-"
     private static let projectStartPrefix = "projectStart-"
     private static let projectEndPrefix = "projectEnd-"
+    private static let subtaskStartPrefix = "subtaskStart-"
+    private static let subtaskEndPrefix = "subtaskEnd-"
     private static var managedPrefixes: [String] {
         [summaryPrefix, activityPrefix, monthlyPrefix, taskEarlyPrefix, activityEarlyPrefix,
-         projectStartPrefix, projectEndPrefix]
+         projectStartPrefix, projectEndPrefix, subtaskStartPrefix, subtaskEndPrefix]
     }
     private static let legacyIdentifier = "activityReminder"   // repeating reminder from older versions
     private static let daysAhead = 7
@@ -283,6 +285,19 @@ enum ReminderScheduler {
                 result.append(projectRequest(id: projectEndPrefix + p.id.uuidString,
                                              title: "Project deadline",
                                              body: "\(p.title) should be finished now.\(left)", at: end))
+            }
+            // Subtasks that are still open: at their start and at their end
+            for s in p.subtasks where !s.isCompleted {
+                if let start = s.startDate, start > now {
+                    result.append(projectRequest(id: subtaskStartPrefix + s.id.uuidString,
+                                                 title: "Subtask starts",
+                                                 body: "\(s.title) (\(p.title)) starts now.", at: start))
+                }
+                if let end = s.endDate, end > now {
+                    result.append(projectRequest(id: subtaskEndPrefix + s.id.uuidString,
+                                                 title: "Subtask deadline",
+                                                 body: "\(s.title) (\(p.title)) should be finished now.", at: end))
+                }
             }
         }
         return result

@@ -25,6 +25,7 @@ struct SubtaskSectionView: View {
                     Button(action: {
                         subtask.isCompleted.toggle()
                         try? modelContext.save() // ✅ Save toggle
+                        ReminderScheduler.refresh(context: modelContext)   // no reminders for finished subtasks
                     }) {
                         Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
                             .foregroundColor(subtask.isCompleted ? .green : .gray)

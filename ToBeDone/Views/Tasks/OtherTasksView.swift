@@ -161,6 +161,7 @@ struct OtherTasksView: View {
         let newSubtask = SubtaskModel(title: subtaskTitle)
         task.subtasks.append(newSubtask)
         try? modelContext.save()
+        Toast.show("Subtask added")
     }
 
     private func sortedTasks() -> [OtherTaskModel] {
