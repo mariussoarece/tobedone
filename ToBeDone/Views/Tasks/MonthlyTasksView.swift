@@ -65,19 +65,10 @@ struct MonthlyTasksView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
-                    Section(header: Text("Monthly Expenses – tap to mark paid, hold to edit")) {
-                        ForEach(sortedTasks, id: \.id) { task in
-                            MonthlyRow(title: task.title,
-                                       schedule: task.scheduleText.map {
-                                           task.isPaid(in: .now) ? "\($0) · ✓ paid this month" : $0
-                                       },
-                                       price: task.price,
-                                       currency: selectedCurrency)
-                                .contentShape(Rectangle())
-                                .onTapGesture { togglePaid(task) }
-                                .editAction { editing = task }   // swipe right or touch and hold
+                    Section(header: Text("Monthly Expenses – tap to complete, hold to edit")) {
+                        ForEach(unpaidTasks, id: \.id) { task in
+                            monthlyRow(task)
                         }
-                        .onDelete(perform: deleteTask)
                         .id(listRevision)
                     }
 
@@ -88,6 +79,12 @@ struct MonthlyTasksView: View {
                             Spacer()
                             Text("\(totalPrice(), specifier: "%.2f") \(selectedCurrency)")
                                 .bold().foregroundColor(.blue)
+                        }
+                        HStack {
+                            Text("Still to pay this month:")
+                            Spacer()
+                            Text("\(unpaidTasks.reduce(0) { $0 + $1.price }, specifier: "%.2f") \(selectedCurrency)")
+                                .foregroundColor(.orange)
                         }
                     }
                     HStack{
@@ -102,6 +99,14 @@ struct MonthlyTasksView: View {
                         }
                         .buttonStyle(.bordered)
                         .padding(.horizontal)
+                    }
+
+                    // Paid this month: back in the list above next month, on its day
+                    Section(header: Text("Completed – paid this month")) {
+                        ForEach(paidTasks, id: \.id) { task in
+                            monthlyRow(task)
+                        }
+                        .id(listRevision)
                     }
                 }
                 .scrollDismissesKeyboard(.interactively)
@@ -184,7 +189,7 @@ struct MonthlyTasksView: View {
         try? modelContext.save()
         ReminderScheduler.refresh(context: modelContext)
         listRevision += 1
-        if task.isPaid(in: .now) { Toast.show("Paid this month") }
+        if task.isPaid(in: .now) { Toast.show("Completed") }
     }
 
     /// Default time for a new monthly expense: 10:00
@@ -201,13 +206,42 @@ struct MonthlyTasksView: View {
         }
     }
 
-    private func deleteTask(at offsets: IndexSet) {
-        let sorted = sortedTasks
-        for index in offsets {
-            modelContext.delete(sorted[index])
-        }
+    private var unpaidTasks: [MonthlyTaskModel] { sortedTasks.filter { !$0.isPaid(in: .now) } }
+    private var paidTasks: [MonthlyTaskModel] { sortedTasks.filter { $0.isPaid(in: .now) } }
+
+    /// Tap: complete (paid this month) or undo. Swipe left: Delete or Complete.
+    /// Swipe right or touch and hold: Edit.
+    private func monthlyRow(_ task: MonthlyTaskModel) -> some View {
+        let paid = task.isPaid(in: .now)
+        return MonthlyRow(title: task.title,
+                          schedule: task.scheduleText,
+                          price: task.price,
+                          currency: selectedCurrency,
+                          paid: paid)
+            .contentShape(Rectangle())
+            .onTapGesture { togglePaid(task) }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) {
+                    delete(task)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                Button {
+                    togglePaid(task)
+                } label: {
+                    Label(paid ? "Not paid" : "Complete",
+                          systemImage: paid ? "arrow.uturn.backward" : "checkmark")
+                }
+                .tint(paid ? .gray : .green)
+            }
+            .editAction { editing = task }   // swipe right or touch and hold
+    }
+
+    private func delete(_ task: MonthlyTaskModel) {
+        modelContext.delete(task)
         try? modelContext.save()
         ReminderScheduler.refresh(context: modelContext)
+        listRevision += 1
     }
 
     private func totalPrice() -> Double {
@@ -376,11 +410,14 @@ private struct MonthlyRow: View {
     let schedule: String?
     let price: Double
     let currency: String
+    var paid: Bool = false
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
+                    .strikethrough(paid)
+                    .foregroundStyle(paid ? Color.secondary : Color.primary)
                 // "Every month on day 5 at 10:00"
                 Text(schedule ?? "No day set – tap to choose one")
                     .font(.caption)
