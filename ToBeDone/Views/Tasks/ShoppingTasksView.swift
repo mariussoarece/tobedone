@@ -189,6 +189,7 @@ struct ShoppingTasksView: View {
             .navigationTitle("")
             }
         }
+        .firstTimeTip("shopping", title: "💡 Tip", message: "Turn the price into hours of work and ask yourself: is this product worth that many hours of your life? Let's save the planet!")
         .sheet(item: $editingDetails) { EditShoppingItemSheet(item: $0) }
         .sheet(item: $editingItem) { item in
             ScrollView {

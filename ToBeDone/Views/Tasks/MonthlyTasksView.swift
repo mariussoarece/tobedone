@@ -163,6 +163,7 @@ struct MonthlyTasksView: View {
             .navigationTitle("")
             }
         }
+        .firstTimeTip("monthly", title: "💡 Tip", message: "Reduce daily money decisions to fight financial fatigue. Pick one fixed day each month to pay all your bills: every separate payment is another moment of stress and wasted attention.")
     }
 
     private func addTask() {
