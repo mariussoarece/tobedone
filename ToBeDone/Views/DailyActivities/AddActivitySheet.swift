@@ -17,7 +17,9 @@ struct AddActivitySheet: View {
     @State private var date: Date
     @State private var repeatWeekly: Bool = false
     @State private var repeatDailyWholeWeek: Bool = true
-    @State private var repeatWeeksCount: Int = 4   // 1…52
+    @State private var repeatWeeksCount: Int = 4   // 1…52 (a year)
+    @State private var repeatDaily: Bool = false
+    @State private var repeatDaysCount: Int = 7    // 1…100
     @State private var showingOverlapAlert = false
     @State private var pendingItems: [ActivityItem] = []
     @State private var remindBefore = false
@@ -61,7 +63,16 @@ struct AddActivitySheet: View {
             Form {
                 Section("When") {
                     DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
-                    Toggle("Repeat weekly (same weekday)", isOn: $repeatWeekly)
+                    // Only one kind of repeat at a time: turning one on turns the other off
+                    Toggle("Repeat daily", isOn: $repeatDaily)
+                        .onChange(of: repeatDaily) { _, on in if on { repeatWeekly = false } }
+                    if repeatDaily {
+                        Stepper(value: $repeatDaysCount, in: 1...100) {
+                            Text("For \(repeatDaysCount) day\(repeatDaysCount == 1 ? "" : "s")")
+                        }
+                    }
+                    Toggle("Repeat weekly", isOn: $repeatWeekly)
+                        .onChange(of: repeatWeekly) { _, on in if on { repeatDaily = false } }
                     if repeatWeekly {
                         Stepper(value: $repeatWeeksCount, in: 1...52) {
                             Text("For \(repeatWeeksCount) week\(repeatWeeksCount == 1 ? "" : "s")")
@@ -81,8 +92,8 @@ struct AddActivitySheet: View {
                     // Optional early reminder: "… is starting in 2 days and 30 min"
                     ReminderBeforeRows(isOn: $remindBefore, minutesBefore: $remindMinutes, start: date)
                 } footer: {
-                    if repeatWeekly && remindBefore {
-                        Text("Every week gets the same reminder before its start.")
+                    if (repeatWeekly || repeatDaily) && remindBefore {
+                        Text("Every repeat gets the same reminder before its start.")
                     }
                 }
             }
@@ -94,12 +105,13 @@ struct AddActivitySheet: View {
                         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmed.isEmpty else { return }
 
-                        // Build every occurrence first (1 item, or one per repeated week)
-                        let weeks = repeatWeekly ? repeatWeeksCount : 1
-                        let sid: UUID? = repeatWeekly ? UUID() : nil
+                        // Build every occurrence first: 1 item, or one per repeated day or week
+                        let count = repeatDaily ? repeatDaysCount : (repeatWeekly ? repeatWeeksCount : 1)
+                        let step: Calendar.Component = repeatDaily ? .day : .weekOfYear
+                        let sid: UUID? = (repeatWeekly || repeatDaily) ? UUID() : nil
                         var newItems: [ActivityItem] = []
-                        for w in 0..<weeks {
-                            let next = Calendar.current.date(byAdding: .weekOfYear, value: w, to: date) ?? date
+                        for w in 0..<count {
+                            let next = Calendar.current.date(byAdding: step, value: w, to: date) ?? date
                             newItems.append(ActivityItem(
                                 date: next,
                                 name: trimmed,

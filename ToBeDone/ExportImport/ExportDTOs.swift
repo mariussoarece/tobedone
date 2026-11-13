@@ -39,6 +39,8 @@ struct SubtaskDTO: Codable, Identifiable {
     var id: UUID
     var title: String
     var isCompleted: Bool
+    var startDate: Date? = nil   // optional: older export files don't have dates
+    var endDate: Date? = nil
 }
 
 struct OtherTaskDTO: Codable, Identifiable {
@@ -46,6 +48,8 @@ struct OtherTaskDTO: Codable, Identifiable {
     var title: String
     var isCompleted: Bool
     var subtasks: [SubtaskDTO]
+    var startDate: Date? = nil   // optional: older export files don't have dates
+    var endDate: Date? = nil
 }
 
 struct ActivityDTO: Codable, Identifiable {
@@ -110,8 +114,11 @@ extension OtherTaskDTO {
         self.title = model.title
         self.isCompleted = model.isCompleted
         self.subtasks = model.subtasks.map {
-            SubtaskDTO(id: $0.id, title: $0.title, isCompleted: $0.isCompleted)
+            SubtaskDTO(id: $0.id, title: $0.title, isCompleted: $0.isCompleted,
+                       startDate: $0.startDate, endDate: $0.endDate)
         }
+        self.startDate = model.startDate
+        self.endDate = model.endDate
     }
 }
 

@@ -13,6 +13,7 @@ struct ShoppingTasksView: View {
 
     @State private var newItemName: String = ""
     @State private var newItemPrice: String = ""
+    @State private var showPriceError = false
     @State private var selectedPriority: TaskPriority = .medium
     @AppStorage("selectedCurrency") private var selectedCurrency: String = "USD"
     @State private var exportURL: URL?
@@ -20,6 +21,7 @@ struct ShoppingTasksView: View {
     @State private var editingItem: ShoppingItemModel?
     @State private var editedPrice: String = ""
     @State private var showEditPriceSheet = false
+    @State private var editingDetails: ShoppingItemModel?
 
     var body: some View {
         Group {
@@ -31,11 +33,17 @@ struct ShoppingTasksView: View {
                     .foregroundColor(.red)
                     .padding(.horizontal)
                     .padding(.top)
-            KeyboardDismissWrapper {
+            // Plain Form (no KeyboardDismissWrapper), so Edit windows and the list update normally
                 Form {
                     Section(header: Text("Add New Item")) {
                         TextField("Item Name", text: $newItemName)
                         TextField("Price", text: $newItemPrice).keyboardType(.decimalPad)
+                            .onChange(of: newItemPrice) { _, _ in showPriceError = false }
+                        if showPriceError {
+                            Text("Please enter a price")
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        }
 
                         Picker("Priority", selection: $selectedPriority) {
                             ForEach(TaskPriority.allCases) { priority in
@@ -45,19 +53,23 @@ struct ShoppingTasksView: View {
 
                         Button("Add Item") {
                             let name = newItemName.trimmingCharacters(in: .whitespaces)
+                            if !name.isEmpty && newItemPrice.decimalValue == nil {
+                                withAnimation { showPriceError = true }
+                            }
                             if !name.isEmpty, let price = newItemPrice.decimalValue {
                                 let newItem = ShoppingItemModel(name: name, price: price, currency: selectedCurrency, priority: selectedPriority)
                                 modelContext.insert(newItem)
                                 try? modelContext.save()   // save now, don't wait for autosave
                                 newItemName = ""
                                 newItemPrice = ""
+                                Toast.show("Item added")
                             }
                         }
                         .buttonStyle(.borderedProminent)   // blue, like Export
                         .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
-                    Section(header: Text("Shopping List")) {
+                    Section(header: Text("Shopping List – tap to complete, hold to edit")) {
                         ForEach(shoppingItems.filter { !$0.isCompleted }) { item in
                             HStack {
                                 VStack(alignment: .leading) {
@@ -74,6 +86,7 @@ struct ShoppingTasksView: View {
                                 editedPrice = String(item.price)
                             }
                             .contentShape(Rectangle())
+                            .editAction { editingDetails = item }   // swipe right or touch and hold
 
                         }
                     }
@@ -163,21 +176,34 @@ struct ShoppingTasksView: View {
                             print("Importer error:", error)
                         }
                     }
-
+                .scrollDismissesKeyboard(.interactively)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") {
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
+                    }
                 }
             .navigationBarTitleDisplayMode(.inline) // optional
             .navigationTitle("")
             }
         }
+        .sheet(item: $editingDetails) { EditShoppingItemSheet(item: $0) }
         .sheet(item: $editingItem) { item in
             ScrollView {
                 VStack(spacing: 20) {
-                    Text("Edit Price")
+                    Text("Final Price")
                         .font(.title2)
                         .bold()
 
                     Text(item.name)
                         .font(.headline)
+
+                    Text("Change it if you paid a different amount, then tap Complete.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
 
                     TextField("Price", text: $editedPrice)
                         .keyboardType(.decimalPad)
@@ -185,7 +211,7 @@ struct ShoppingTasksView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
 
-                    Button("Confirm") {
+                    Button("Complete") {
                         if let newPrice = editedPrice.decimalValue {
                             item.price = newPrice
                         }
@@ -203,7 +229,7 @@ struct ShoppingTasksView: View {
                 }
                 .padding()
             }
-            .presentationDetents([.fraction(0.35)])
+            .presentationDetents([.fraction(0.42)])
             .presentationDragIndicator(.visible)
         }
     }

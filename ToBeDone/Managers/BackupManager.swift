@@ -28,10 +28,13 @@ struct AppBackup: Codable {
     var confidenceEntries: [ConfidenceB] = []
     var activities: [ActivityB] = []
     var focusResults: [FocusB] = []
+    /// Optional: backups from versions before Journalling don't have it
+    var journal: [JournalB]? = nil
 
     var totalCount: Int {
         tasks.count + shoppingItems.count + monthlyTasks.count + projects.count +
-        groceryItems.count + confidenceEntries.count + activities.count + focusResults.count
+        groceryItems.count + confidenceEntries.count + activities.count + focusResults.count +
+        (journal?.count ?? 0)
     }
 
     struct TaskB: Codable {
@@ -46,12 +49,15 @@ struct AppBackup: Codable {
     struct MonthlyB: Codable {
         var id: UUID; var title: String; var price: Double?
         var dayOfMonth: Int?; var timeOfDayMinutes: Int?
+        var paidMonth: String?
     }
     struct SubtaskB: Codable {
         var id: UUID; var title: String; var isCompleted: Bool?
+        var startDate: Date? = nil; var endDate: Date? = nil
     }
     struct ProjectB: Codable {
         var id: UUID; var title: String; var isCompleted: Bool?; var subtasks: [SubtaskB]?
+        var startDate: Date? = nil; var endDate: Date? = nil
     }
     struct GroceryB: Codable {
         var id: UUID; var name: String; var isBought: Bool?
@@ -67,6 +73,10 @@ struct AppBackup: Codable {
     }
     struct FocusB: Codable {
         var date: Date; var duration: Double
+    }
+    struct JournalB: Codable {
+        var id: UUID; var date: Date; var mood: String?
+        var richText: Data?; var plainText: String?
     }
 }
 
@@ -102,11 +112,16 @@ enum BackupManager {
         }
         b.monthlyTasks = all(MonthlyTaskModel.self).map {
             AppBackup.MonthlyB(id: $0.id, title: $0.title, price: $0.price,
-                               dayOfMonth: $0.dayOfMonth, timeOfDayMinutes: $0.timeOfDayMinutes)
+                               dayOfMonth: $0.dayOfMonth, timeOfDayMinutes: $0.timeOfDayMinutes,
+                               paidMonth: $0.paidMonth)
         }
         b.projects = all(OtherTaskModel.self).map { p in
             AppBackup.ProjectB(id: p.id, title: p.title, isCompleted: p.isCompleted,
-                  subtasks: p.subtasks.map { AppBackup.SubtaskB(id: $0.id, title: $0.title, isCompleted: $0.isCompleted) })
+                  subtasks: p.subtasks.map {
+                      AppBackup.SubtaskB(id: $0.id, title: $0.title, isCompleted: $0.isCompleted,
+                                         startDate: $0.startDate, endDate: $0.endDate)
+                  },
+                  startDate: p.startDate, endDate: p.endDate)
         }
         b.groceryItems = all(GroceryItemModel.self).map {
             AppBackup.GroceryB(id: $0.id, name: $0.name, isBought: $0.isBought)
@@ -122,6 +137,10 @@ enum BackupManager {
         }
         b.focusResults = all(FocusResult.self).map {
             AppBackup.FocusB(date: $0.date, duration: $0.duration)
+        }
+        b.journal = all(JournalEntry.self).map {
+            AppBackup.JournalB(id: $0.id, date: $0.date, mood: $0.moodRaw,
+                               richText: $0.richText, plainText: $0.plainText)
         }
         return b
     }
@@ -215,6 +234,7 @@ enum BackupManager {
         for mt in backup.monthlyTasks where !monthlyIds.contains(mt.id) {
             let m = MonthlyTaskModel(title: mt.title, price: mt.price ?? 0, dayOfMonth: mt.dayOfMonth)
             m.timeOfDayMinutes = mt.timeOfDayMinutes
+            m.paidMonth = mt.paidMonth
             m.id = mt.id
             context.insert(m)
             added += 1
@@ -222,11 +242,17 @@ enum BackupManager {
 
         let projectIds = ids(OtherTaskModel.self) { $0.id }
         for p in backup.projects where !projectIds.contains(p.id) {
-            let subs = (p.subtasks ?? []).map {
-                SubtaskModel(id: $0.id, title: $0.title, isCompleted: $0.isCompleted ?? false)
+            let subs = (p.subtasks ?? []).map { s -> SubtaskModel in
+                let m = SubtaskModel(id: s.id, title: s.title, isCompleted: s.isCompleted ?? false)
+                m.startDate = s.startDate
+                m.endDate = s.endDate
+                return m
             }
-            context.insert(OtherTaskModel(id: p.id, title: p.title,
-                                          isCompleted: p.isCompleted ?? false, subtasks: subs))
+            let project = OtherTaskModel(id: p.id, title: p.title,
+                                         isCompleted: p.isCompleted ?? false, subtasks: subs)
+            project.startDate = p.startDate
+            project.endDate = p.endDate
+            context.insert(project)
             added += 1
         }
 
@@ -255,6 +281,15 @@ enum BackupManager {
                                  repeatWeeks: a.repeatWeeks ?? 0)
             m.id = a.id
             m.reminderMinutes = a.reminderMinutes
+            context.insert(m)
+            added += 1
+        }
+
+        let journalIds = ids(JournalEntry.self) { $0.id }
+        for j in backup.journal ?? [] where !journalIds.contains(j.id) {
+            let m = JournalEntry(date: j.date, mood: JournalMood(rawValue: j.mood ?? "") ?? .good,
+                                 richText: j.richText, plainText: j.plainText ?? "")
+            m.id = j.id
             context.insert(m)
             added += 1
         }

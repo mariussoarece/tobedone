@@ -18,6 +18,7 @@ struct DueTasksView: View {
     @State private var exportURL: URL?
     @State private var showingImporter = false
     @State private var showingShareSheet = false
+    @State private var editingTask: TaskModel?
 
     var body: some View {
         Group {
@@ -31,7 +32,7 @@ struct DueTasksView: View {
                     .padding(.horizontal)
                     .padding(.top)
 
-                KeyboardDismissWrapper {
+                // Plain Form (no KeyboardDismissWrapper), so Edit windows and the list update normally
                     Form {
                         // MARK: Add New Task
                         Section(header: Text("Add New Task")) {
@@ -62,7 +63,7 @@ struct DueTasksView: View {
                         }
 
                         // MARK: Due Tasks
-                        Section(header: Text("Due Tasks")) {
+                        Section(header: Text("Due Tasks – tap to complete, hold to edit")) {
                             ForEach(sortedTasks().filter { !$0.isCompleted }, id: \.id) { task in
                                 taskRow(task)
                             }
@@ -91,8 +92,15 @@ struct DueTasksView: View {
 
                     }
                     .scrollDismissesKeyboard(.interactively)
-
-                }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") {
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            }
+                        }
+                    }
+                .sheet(item: $editingTask) { EditTaskSheet(task: $0) }
                 .fileImporter(
                         isPresented: $showingImporter,
                         allowedContentTypes: [.json],
@@ -156,6 +164,7 @@ struct DueTasksView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { toggleCompletion(task) }
+        .editAction { editingTask = task }   // swipe right or touch and hold
     }
 
     // MARK: - Logic
@@ -179,6 +188,8 @@ struct DueTasksView: View {
         try? modelContext.save()
         NotificationManager.shared.scheduleNotification(for: newTask)
         ReminderScheduler.refresh(context: modelContext)   // update tonight's summary
+
+        Toast.show("Task added")
 
         // Reset UI
         newTaskTitle = ""

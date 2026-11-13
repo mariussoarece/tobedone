@@ -48,6 +48,8 @@ struct LifeOrderingApp: App {
             }
             .modelContainer(sharedModelContainer)
             .preferredColorScheme(colorScheme)
+            // "Task added" and other 1-second confirmations, over every screen
+            .overlay { ToastOverlay() }
             .task { checkForRestore() }
             // The widget's + (and any tap on the widget) opens the main screen
             .onOpenURL { url in

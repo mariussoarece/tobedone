@@ -11,6 +11,7 @@ struct GroceryTasksView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var newItemName: String = ""
+    @State private var editingItem: GroceryItemModel?
 
     var body: some View {
         Group {
@@ -22,7 +23,7 @@ struct GroceryTasksView: View {
                                 .foregroundColor(.yellow)
                                 .padding(.horizontal)
                                 .padding(.top)
-            KeyboardDismissWrapper {
+            // Plain Form (no KeyboardDismissWrapper), so Edit windows and the list update normally
                 Form {
                     // 🔹 Add New Grocery Item
                     Section(header: Text("Add Grocery Item")) {
@@ -39,13 +40,14 @@ struct GroceryTasksView: View {
                             modelContext.insert(item)
                             try? modelContext.save()   // save now, don't wait for autosave
                             newItemName = ""
+                            Toast.show("Item added")
                         }
                         .buttonStyle(.borderedProminent)   // blue, like Export
                         .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
                     // 🔸 Grocery Items Not Bought Yet
-                    Section(header: Text("Grocery List")) {
+                    Section(header: Text("Grocery List – tap when bought, hold to edit")) {
                         ForEach(sortedItems().filter { !$0.isBought }, id: \.id) { item in
                             groceryRow(item)
                         }
@@ -58,9 +60,18 @@ struct GroceryTasksView: View {
                         }.onDelete(perform: deleteCompletedTasks)
                     }
                 }
-            }
+                .scrollDismissesKeyboard(.interactively)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") {
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
+                    }
+                }
             .navigationBarTitleDisplayMode(.inline) // optional
             .navigationTitle("")
+            .sheet(item: $editingItem) { EditGroceryItemSheet(item: $0) }
 
             }
         }
@@ -77,6 +88,7 @@ struct GroceryTasksView: View {
         .onTapGesture {
             toggleItem(item)
         }
+        .editAction { editingItem = item }   // swipe right or touch and hold
     }
 
     private func toggleItem(_ item: GroceryItemModel) {

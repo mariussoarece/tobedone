@@ -13,6 +13,13 @@ struct OtherTasksView: View {
     @State private var newTaskTitle: String = ""
     @State private var exportURL: URL?
     @State private var showingImporter = false
+    @State private var editingProject: OtherTaskModel?
+    @State private var editingSubtask: SubtaskModel?
+    @State private var newSubtask: NewSubtaskRequest?
+    @State private var newHasStart = false
+    @State private var newStart = StartEndRows.defaultStart
+    @State private var newHasEnd = false
+    @State private var newEnd = StartEndRows.defaultEnd
 
     var body: some View {
         Group {
@@ -24,7 +31,7 @@ struct OtherTasksView: View {
                                 .foregroundColor(.green)
                                 .padding(.horizontal)
                                 .padding(.top)
-            KeyboardDismissWrapper {
+            // Plain Form (no KeyboardDismissWrapper), so Edit windows and the list update normally
                 Form {
                     // 🔹 Add Task Section
                     Section(header: Text("Add New Task")) {
@@ -34,12 +41,23 @@ struct OtherTasksView: View {
                                 hideKeyboard()
                             }
 
+                        // Optional start and end, with a notification at each
+                        StartEndRows(hasStart: $newHasStart, start: $newStart, hasEnd: $newHasEnd, end: $newEnd)
+
                         Button("Add Project") {
                             if !newTaskTitle.isEmpty {
                                 let newTask = OtherTaskModel(title: newTaskTitle)
+                                newTask.startDate = newHasStart ? newStart : nil
+                                newTask.endDate = newHasEnd ? max(newEnd, newHasStart ? newStart : newEnd) : nil
                                 modelContext.insert(newTask)
                                 try? modelContext.save()   // save now, don't wait for autosave
+                                ReminderScheduler.refresh(context: modelContext)
                                 newTaskTitle = ""
+                                newHasStart = false
+                                newHasEnd = false
+                                newStart = StartEndRows.defaultStart
+                                newEnd = StartEndRows.defaultEnd
+                                Toast.show("Project added")
                             }
                         }
                         .buttonStyle(.borderedProminent)   // blue, like Export
@@ -47,16 +65,18 @@ struct OtherTasksView: View {
                     }
 
                     // 🔸 Active Tasks Section
-                    Section(header: Text("Tasks with Subtasks")) {
+                    Section(header: Text("Projects – tap to complete, hold to edit")) {
                         ForEach(sortedTasks().filter { !$0.isCompleted }, id: \.id) { task in
                             SubtaskSectionView(
                                 task: task,
                                 onAdd: { newSubtaskText in
-                                    addSubtask(to: task, subtaskTitle: newSubtaskText)
+                                    newSubtask = NewSubtaskRequest(project: task, title: newSubtaskText)
                                 },
                                 onToggleCompletion: {
                                     toggleTaskCompletion(task)
-                                }
+                                },
+                                onEditProject: { editingProject = task },
+                                onEditSubtask: { editingSubtask = $0 }
                             )
                         }
                     }
@@ -80,11 +100,13 @@ struct OtherTasksView: View {
                                 SubtaskSectionView(
                                     task: task,
                                     onAdd: { newSubtaskText in
-                                        addSubtask(to: task, subtaskTitle: newSubtaskText)
+                                        newSubtask = NewSubtaskRequest(project: task, title: newSubtaskText)
                                     },
                                     onToggleCompletion: {
                                         toggleTaskCompletion(task)
-                                    }
+                                    },
+                                    onEditProject: { editingProject = task },
+                                    onEditSubtask: { editingSubtask = $0 }
                                 )
                             }
                             .onDelete(perform: deleteCompletedTasks)
@@ -119,17 +141,36 @@ struct OtherTasksView: View {
                             print("Importer error:", error)
                         }
                     }
-            }
+                .scrollDismissesKeyboard(.interactively)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") {
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
+                    }
+                }
             .navigationBarTitleDisplayMode(.inline) // optional
             .navigationTitle("")
+            .sheet(item: $editingProject) { EditProjectSheet(project: $0) }
+            .sheet(item: $editingSubtask) { EditSubtaskSheet(subtask: $0) }
+            .sheet(item: $newSubtask) { request in
+                NewSubtaskSheet(title: request.title) { title, start, end in
+                    addSubtask(to: request.project, subtaskTitle: title, start: start, end: end)
+                }
+            }
             }
         }
     }
 
-    private func addSubtask(to task: OtherTaskModel, subtaskTitle: String) {
-        let newSubtask = SubtaskModel(title: subtaskTitle)
-        task.subtasks.append(newSubtask)
+    private func addSubtask(to task: OtherTaskModel, subtaskTitle: String, start: Date?, end: Date?) {
+        let subtask = SubtaskModel(title: subtaskTitle)
+        subtask.startDate = start
+        subtask.endDate = end
+        task.subtasks.append(subtask)
         try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)   // start and end notifications
+        Toast.show("Subtask added")
     }
 
     private func sortedTasks() -> [OtherTaskModel] {
@@ -144,6 +185,7 @@ struct OtherTasksView: View {
     private func toggleTaskCompletion(_ task: OtherTaskModel) {
         task.isCompleted.toggle()
         try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)   // no reminders for finished projects
     }
 
     private func hideKeyboard() {
@@ -157,6 +199,7 @@ struct OtherTasksView: View {
             modelContext.delete(taskToDelete)
         }
         try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)
     }
 
     private func exportOtherTasks() {
@@ -167,7 +210,9 @@ struct OtherTasksView: View {
                 SubtaskDTO(
                     id: sub.id,
                     title: sub.title,
-                    isCompleted: sub.isCompleted
+                    isCompleted: sub.isCompleted,
+                    startDate: sub.startDate,
+                    endDate: sub.endDate
                 )
             }
 
@@ -175,7 +220,9 @@ struct OtherTasksView: View {
                 id: task.id,
                 title: task.title,
                 isCompleted: false,
-                subtasks: subtaskDTOs
+                subtasks: subtaskDTOs,
+                startDate: task.startDate,
+                endDate: task.endDate
             )
         }
 
@@ -217,11 +264,14 @@ struct OtherTasksView: View {
 
             for dto in dtos where !exists(dto) {
                 let convertedSubtasks = dto.subtasks.map { subDTO in
-                    SubtaskModel(
+                    let sub = SubtaskModel(
                         id: subDTO.id,
                         title: subDTO.title,
                         isCompleted: subDTO.isCompleted
                     )
+                    sub.startDate = subDTO.startDate
+                    sub.endDate = subDTO.endDate
+                    return sub
                 }
                 let item = OtherTaskModel(
                     id: dto.id,
@@ -230,10 +280,13 @@ struct OtherTasksView: View {
                     subtasks: convertedSubtasks
 
                 )
+                item.startDate = dto.startDate
+                item.endDate = dto.endDate
                 modelContext.insert(item)
             }
 
             try? modelContext.save()
+            ReminderScheduler.refresh(context: modelContext)
         } catch {
             print("Import decode error:", error)
         }
@@ -260,4 +313,11 @@ struct OtherTasksView: View {
         }
         topVC.present(activityVC, animated: true)
     }
+}
+
+/// Which project a new subtask goes into, and the title typed so far
+struct NewSubtaskRequest: Identifiable {
+    let id = UUID()
+    let project: OtherTaskModel
+    let title: String
 }

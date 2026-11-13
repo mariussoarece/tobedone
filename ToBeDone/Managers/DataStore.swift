@@ -21,6 +21,7 @@ enum DataStore {
         ConfidenceEntry.self,
         ActivityItem.self,
         FocusResult.self,
+        JournalEntry.self,   // new in 6.x; adding a model doesn't touch existing data
     ])
 
     /// The error message when the existing database could not be opened at launch.

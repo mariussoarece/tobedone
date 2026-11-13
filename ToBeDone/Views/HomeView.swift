@@ -8,6 +8,7 @@
 
 import SwiftUI
 import SwiftData
+import StoreKit
 
 struct HomeView: View {
     @AppStorage("userName") private var userName: String = ""
@@ -15,6 +16,7 @@ struct HomeView: View {
     @State private var showSettings = false
     @State private var destination: HomeDestination?
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.requestReview) private var requestReview
 
     @Query private var tasks: [TaskModel]
     @Query private var activities: [ActivityItem]
@@ -24,6 +26,7 @@ struct HomeView: View {
     @Query private var projects: [OtherTaskModel]
     @Query private var confidenceEntries: [ConfidenceEntry]
     @Query private var focusResults: [FocusResult]
+    @Query(sort: \JournalEntry.date, order: .reverse) private var journalEntries: [JournalEntry]
 
     var body: some View {
         NavigationStack {
@@ -67,6 +70,8 @@ struct HomeView: View {
                             detail: activitiesLeftToday > 0 ? "\(activitiesLeftToday) left" : nil) { DailyActivitiesView() }
                     HomeRow(title: Text("Confidence"), icon: "heart.fill", color: .pink,
                             detail: confidenceText) { ConfidenceTrackerView() }
+                    HomeRow(title: Text("Journalling"), icon: "book.closed.fill", color: .orange,
+                            detail: journalEntries.first?.mood.emoji) { JournalView() }
                     HomeRow(title: Text("Focus Test"), icon: "eye.fill", color: .blue,
                             detail: focusBestText) { FocusTestView() }
                 } header: {
@@ -93,6 +98,7 @@ struct HomeView: View {
             .environment(\.defaultMinListRowHeight, 34)   // allows the shorter rows below
             .toolbar(.hidden, for: .navigationBar)   // the greeting replaces the title bar on Home only
             .navigationDestination(isPresented: $showSettings) { SettingsView() }
+            .task { await askForRatingIfDue() }
             .navigationDestination(item: $destination) { target in
                 switch target {
                 case .todo: DueTasksView()
@@ -168,7 +174,7 @@ struct HomeView: View {
         } else {
             ForEach(todayAgenda) { item in
                 TodayRow(item: item, currency: selectedCurrency,
-                         onToggle: item.kind == .monthly ? nil : { toggle(item) })
+                         onToggle: { withAnimation { toggle(item) } })
                     .contentShape(Rectangle())
                     .onTapGesture { destination = HomeDestination(item.kind) }
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 12))
@@ -177,7 +183,9 @@ struct HomeView: View {
     }
 
     private var todayAgenda: [AgendaItem] {
+        // Ticked-off tasks and activities leave the Today panel
         Agenda.forDay(.now, tasks: tasks, monthly: monthlyItems, activities: activities)
+            .filter { !$0.done }
     }
 
     /// Tick a To Do task or Daily Routine activity off (or back on) from the Today card.
@@ -198,7 +206,10 @@ struct HomeView: View {
             try? modelContext.save()
             syncActivityConfidence(for: activity.date)
         case .monthly:
-            return
+            // Paid for this month: it leaves Today and this month's reminder is skipped
+            guard let expense = monthlyItems.first(where: { $0.id == item.modelID }) else { return }
+            expense.paidMonth = expense.isPaid(in: item.start) ? nil : MonthlyTaskModel.monthKey(for: item.start)
+            try? modelContext.save()
         }
         ReminderScheduler.refresh(context: modelContext)
     }
@@ -222,6 +233,32 @@ struct HomeView: View {
                                                 note: "Derived from activities", tags: ["activities"]))
         }
         try? modelContext.save()
+    }
+
+    // MARK: - Rating
+
+    /// Apple's own "Enjoying ToBeDone?" rating window, once after 1 month of use
+    /// and once after 2 months. Apple decides whether it really appears (at most
+    /// 3 times a year, and never in TestFlight builds).
+    private func askForRatingIfDue() async {
+        guard !DemoData.isEnabled else { return }
+        let defaults = UserDefaults.standard
+        let firstUseKey = "firstUseDate"
+        let shownKey = "ratingPromptsShown"
+
+        guard let firstUse = defaults.object(forKey: firstUseKey) as? Date else {
+            defaults.set(Date.now, forKey: firstUseKey)   // start counting from today
+            return
+        }
+        let days = Calendar.current.dateComponents([.day], from: firstUse, to: .now).day ?? 0
+        let shown = defaults.integer(forKey: shownKey)
+        let due = (shown == 0 && days >= 30) || (shown == 1 && days >= 60)
+        guard due else { return }
+
+        try? await Task.sleep(for: .seconds(2))   // let Home appear first
+        guard !Task.isCancelled else { return }
+        defaults.set(shown + 1, forKey: shownKey)
+        requestReview()
     }
 
     // MARK: - Numbers

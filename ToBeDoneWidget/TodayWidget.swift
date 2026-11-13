@@ -27,6 +27,8 @@ struct WidgetSnapshot: Codable {
     }
     var generatedAt: Date
     var items: [Item]
+    /// Latest Confidence score (0–10), for the smiley in the background
+    var confidence: Int? = nil
 
     static let appGroup = "group.ro.vishrama.tobedone"
     static let fileName = "widget-agenda.json"
@@ -58,6 +60,7 @@ struct TodayEntry: TimelineEntry {
     let date: Date
     let items: [WidgetSnapshot.Item]
     let hasData: Bool
+    var confidence: Int? = nil
 }
 
 struct TodayProvider: TimelineProvider {
@@ -70,6 +73,7 @@ struct TodayProvider: TimelineProvider {
         let hourStart = cal.dateInterval(of: .hour, for: date)?.start ?? date
         return snapshot.items
             .filter { cal.isDate($0.start, inSameDayAs: date) && ($0.start >= hourStart || $0.end > date) }
+            .filter { !$0.done }   // ticked off (or paid) items leave the widget
             .sorted { $0.start < $1.start }
     }
 
@@ -80,7 +84,7 @@ struct TodayProvider: TimelineProvider {
             WidgetSnapshot.Item(kind: "task", title: "Send the report", start: now.addingTimeInterval(3600), durationMinutes: 0, done: false, detail: "To Do"),
             WidgetSnapshot.Item(kind: "monthly", title: "Internet", start: now.addingTimeInterval(7200), durationMinutes: 0, done: false, detail: "Monthly expense"),
         ]
-        return TodayEntry(date: now, items: sample, hasData: true)
+        return TodayEntry(date: now, items: sample, hasData: true, confidence: 9)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (TodayEntry) -> Void) {
@@ -89,7 +93,8 @@ struct TodayProvider: TimelineProvider {
             return
         }
         let snapshot = WidgetSnapshot.load()
-        completion(TodayEntry(date: .now, items: Self.items(at: .now, from: snapshot), hasData: snapshot != nil))
+        completion(TodayEntry(date: .now, items: Self.items(at: .now, from: snapshot), hasData: snapshot != nil,
+                              confidence: snapshot?.confidence))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodayEntry>) -> Void) {
@@ -106,7 +111,8 @@ struct TodayProvider: TimelineProvider {
             }
         }
         let entries = dates.map {
-            TodayEntry(date: $0, items: Self.items(at: $0, from: snapshot), hasData: snapshot != nil)
+            TodayEntry(date: $0, items: Self.items(at: $0, from: snapshot), hasData: snapshot != nil,
+                       confidence: snapshot?.confidence)
         }
         completion(Timeline(entries: entries, policy: .atEnd))
     }
@@ -199,6 +205,82 @@ struct TodayWidgetView: View {
     }
 }
 
+// MARK: - Smiley background
+
+/// A large, faint face behind the list, following the latest Confidence score:
+/// 8–10 a big laughing smile, 5–7 a gentle smile, 0–4 (or no score) nothing.
+struct ConfidenceFace: View {
+    let score: Int?
+
+    private enum Mood { case big, gentle }
+
+    private var mood: Mood? {
+        guard let score else { return nil }
+        switch score {
+        case 8...: return .big
+        case 5...7: return .gentle
+        default: return nil
+        }
+    }
+
+    var body: some View {
+        if let mood {
+            GeometryReader { geo in
+                let size = min(geo.size.width, geo.size.height) * 0.85
+                ZStack {
+                    Circle()
+                        .stroke(lineWidth: size * 0.05)
+                    // Eyes
+                    HStack(spacing: size * 0.26) {
+                        Circle().frame(width: size * 0.1, height: size * 0.1)
+                        Circle().frame(width: size * 0.1, height: size * 0.1)
+                    }
+                    .offset(y: -size * 0.12)
+                    // Mouth
+                    if mood == .big {
+                        BigSmile()
+                            .frame(width: size * 0.5, height: size * 0.26)
+                            .offset(y: size * 0.17)
+                    } else {
+                        GentleSmile()
+                            .stroke(style: StrokeStyle(lineWidth: size * 0.05, lineCap: .round))
+                            .frame(width: size * 0.44, height: size * 0.14)
+                            .offset(y: size * 0.17)
+                    }
+                }
+                .frame(width: size, height: size)
+                .foregroundStyle(Color.yellow.opacity(0.28))
+                .position(x: geo.size.width / 2, y: geo.size.height / 2)
+            }
+            .accessibilityHidden(true)
+        }
+    }
+
+    /// Open, laughing mouth (a filled half circle)
+    private struct BigSmile: Shape {
+        func path(in rect: CGRect) -> Path {
+            var p = Path()
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            p.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.minY),
+                           control: CGPoint(x: rect.midX, y: rect.maxY * 2 - rect.minY))
+            p.closeSubpath()
+            return p
+        }
+    }
+
+    /// A simple curved line
+    private struct GentleSmile: Shape {
+        func path(in rect: CGRect) -> Path {
+            var p = Path()
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY),
+                           control: CGPoint(x: rect.midX, y: rect.maxY + rect.height))
+            return p
+        }
+    }
+}
+
 // MARK: - Widget
 
 struct TodayWidget: Widget {
@@ -207,7 +289,12 @@ struct TodayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: TodayProvider()) { entry in
             TodayWidgetView(entry: entry)
-                .containerBackground(for: .widget) { Color(.systemBackground) }
+                .containerBackground(for: .widget) {
+                    ZStack {
+                        Color(.systemBackground)
+                        ConfidenceFace(score: entry.confidence)
+                    }
+                }
                 .widgetURL(URL(string: "tobedone://home"))
         }
         .configurationDisplayName("Today")

@@ -20,12 +20,25 @@ class MonthlyTaskModel: Identifiable {
     var dayOfMonth: Int? = nil
     /// Minutes after midnight; nil means the default 10:00
     var timeOfDayMinutes: Int? = nil
+    /// The month it was last marked as paid, e.g. "2026-11" (nil = never)
+    var paidMonth: String? = nil
 
     init(title: String, price: Double = 0.0, dayOfMonth: Int? = nil, hour: Int = 10, minute: Int = 0) {
         self.title = title
         self.price = price
         self.dayOfMonth = dayOfMonth.map { min(max($0, 1), 28) }
         self.timeOfDayMinutes = hour * 60 + minute
+    }
+
+    /// "2026-11" for any day in November 2026
+    static func monthKey(for date: Date, calendar cal: Calendar = .current) -> String {
+        let c = cal.dateComponents([.year, .month], from: date)
+        return String(format: "%04d-%02d", c.year ?? 0, c.month ?? 0)
+    }
+
+    /// Marked as paid for the month that `date` is in
+    func isPaid(in date: Date, calendar cal: Calendar = .current) -> Bool {
+        paidMonth == Self.monthKey(for: date, calendar: cal)
     }
 
     var hour: Int { (timeOfDayMinutes ?? 600) / 60 }      // 600 min = 10:00
