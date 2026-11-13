@@ -274,8 +274,10 @@ struct HomeView: View {
     }
 
     private var monthlyText: String? {
-        guard !monthlyItems.isEmpty else { return nil }
-        let total = monthlyItems.reduce(0) { $0 + $1.price }
+        // Still to pay this month (expenses marked as paid are deducted)
+        let unpaid = monthlyItems.filter { !$0.isPaid(in: .now) }
+        guard !unpaid.isEmpty else { return nil }
+        let total = unpaid.reduce(0) { $0 + $1.price }
         return "\(total.formatted(.number.precision(.fractionLength(0...2)))) \(selectedCurrency)"
     }
 

@@ -56,7 +56,7 @@ struct MonthlyTasksView: View {
                             ForEach(1...28, id: \.self) { Text("\($0)").tag($0) }
                         }
 
-                        DatePicker("Time", selection: $newTime, displayedComponents: .hourAndMinute)
+                        DatePicker("Notification Time", selection: $newTime, displayedComponents: .hourAndMinute)
 
                         Button("Add Task") {
                             addTask()
@@ -65,7 +65,7 @@ struct MonthlyTasksView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)   // right side of the screen
                     }
 
-                    Section(header: Text("Monthly Expenses – tap to complete, hold to edit")) {
+                    Section(header: Text("Monthly Expenses – tap to mark as paid, hold to edit")) {
                         ForEach(unpaidTasks, id: \.id) { task in
                             monthlyRow(task)
                         }
@@ -73,18 +73,21 @@ struct MonthlyTasksView: View {
                     }
 
                     Section {
+                        // Only the expenses not paid yet; paid ones are deducted
                         HStack {
-                            Text("Total:")
+                            Text("Still to pay this month:")
                                 .fontWeight(.bold)
                             Spacer()
                             Text("\(totalPrice(), specifier: "%.2f") \(selectedCurrency)")
                                 .bold().foregroundColor(.blue)
                         }
-                        HStack {
-                            Text("Still to pay this month:")
-                            Spacer()
-                            Text("\(unpaidTasks.reduce(0) { $0 + $1.price }, specifier: "%.2f") \(selectedCurrency)")
-                                .foregroundColor(.orange)
+                        if !paidTasks.isEmpty {
+                            HStack {
+                                Text("Paid this month:")
+                                Spacer()
+                                Text("\(paidTasks.reduce(0) { $0 + $1.price }, specifier: "%.2f") \(selectedCurrency)")
+                                    .foregroundColor(.green)
+                            }
                         }
                     }
                     HStack{
@@ -244,8 +247,9 @@ struct MonthlyTasksView: View {
         listRevision += 1
     }
 
+    /// Active expenses only: the ones paid this month are not counted
     private func totalPrice() -> Double {
-        monthlyTasks.reduce(0) { $0 + $1.price }
+        unpaidTasks.reduce(0) { $0 + $1.price }
     }
 
     private func hideKeyboard() {
@@ -376,7 +380,7 @@ struct EditMonthlyTaskSheet: View {
                     Picker("Day of month", selection: $day) {
                         ForEach(1...28, id: \.self) { Text("\($0)").tag($0) }
                     }
-                    DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute)
+                    DatePicker("Notification Time", selection: $time, displayedComponents: .hourAndMinute)
                 } footer: {
                     Text("You get a reminder every month on this day and time. Days 29–31 aren't offered because not every month has them.")
                 }
