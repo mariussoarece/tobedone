@@ -258,12 +258,13 @@ struct HomeView: View {
         activities.filter { !$0.isCompleted && Calendar.current.isDateInToday($0.date) }.count
     }
 
+    /// Expenses still to pay this month and their total, e.g. "(3) 200 USD", like Shopping
+    /// (paid and completed ones are not counted)
     private var monthlyText: String? {
-        // Still to pay this month (expenses marked as paid are deducted)
         let unpaid = monthlyItems.filter { !$0.isCompleted && !$0.isPaid(in: .now) }
-        guard !unpaid.isEmpty else { return nil }
+        guard !unpaid.isEmpty else { return "0" }
         let total = unpaid.reduce(0) { $0 + $1.price }
-        return "\(total.formatted(.number.precision(.fractionLength(0...2)))) \(selectedCurrency)"
+        return "(\(unpaid.count)) \(total.formatted(.number.precision(.fractionLength(0...2)))) \(selectedCurrency)"
     }
 
     /// Today's Confidence level as a whole number (the same one picks the widget face)
