@@ -54,7 +54,7 @@ final class AppStoreScreenshots: XCTestCase {
         snap("4-DailyRoutine-Weekly")
 
         launch("monthly")
-        openRow("Monthly Expenses")
+        openRow("Monthly")
         snap("5-MonthlyExpenses")
 
         launch("projects")

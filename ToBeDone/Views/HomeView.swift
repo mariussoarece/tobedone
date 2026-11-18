@@ -46,7 +46,7 @@ struct HomeView: View {
                 Section {
                     HomeRow(title: Text("To Do"), icon: "checklist", color: .blue,
                             detail: countText(openTasks)) { DueTasksView() }
-                    HomeRow(title: Text("Monthly Expenses"), icon: "calendar", color: .orange,
+                    HomeRow(title: Text("Monthly"), icon: "calendar", color: .orange,
                             detail: monthlyText) { MonthlyTasksView() }
                     HomeRow(title: Text("Projects"), icon: "target", color: .green,
                             detail: countText(projects.filter { !$0.isCompleted }.count)) { OtherTasksView() }
