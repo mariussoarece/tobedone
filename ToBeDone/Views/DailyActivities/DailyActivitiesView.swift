@@ -254,31 +254,13 @@ struct DailyActivitiesView: View {
     // Only touches entries tagged "activities", so scores you logged yourself
     // in the Confidence screen are never overwritten.
     private func syncConfidenceForDay(_ date: Date) {
-        let cal = Calendar.current
-        let dayStart = cal.startOfDay(for: date)
-        let existing = confidenceEntries.first {
-            cal.isDate($0.date, inSameDayAs: dayStart) && $0.tags.contains("activities")
-        }
-        guard let score = scoreForDay(date) else {
-            // No activities left that day: remove the derived score
-            if let e = existing {
-                modelContext.delete(e)
-                try? modelContext.save()
-            }
-            return
-        }
-        if let e = existing {
-            e.score = score
-        } else {
-            let entry = ConfidenceEntry(date: dayStart, score: score, note: "Derived from activities", tags: ["activities"])
-            modelContext.insert(entry)
-        }
-        try? modelContext.save()
+        // The day's score also counts To Do tasks and Monthly Expenses (see ConfidenceScore.swift)
+        ConfidenceScorer.sync(days: [date], context: modelContext)
     }
 
     // MARK: - Confidence sync helpers
     private func syncConfidenceForDays(_ days: Set<Date>) {
-        for d in days { syncConfidenceForDay(d) }
+        ConfidenceScorer.sync(days: days, context: modelContext)
     }
     private func exportActivities() {
         let dtos = allActivities.filter { !$0.isCompleted }.map(ActivityDTO.init)

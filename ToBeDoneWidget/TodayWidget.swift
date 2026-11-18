@@ -27,8 +27,17 @@ struct WidgetSnapshot: Codable {
     }
     var generatedAt: Date
     var items: [Item]
-    /// Latest Confidence score (0–10), for the smiley in the background
+    /// Today's Confidence level (0–10, whole number), for the face in the background
     var confidence: Int? = nil
+    /// The day that level belongs to
+    var confidenceDay: Date? = nil
+
+    /// The level for the day of `date`, or nil (a new day starts without a face)
+    func level(on date: Date) -> Int? {
+        guard let confidence, let day = confidenceDay,
+              Calendar.current.isDate(day, inSameDayAs: date) else { return nil }
+        return confidence
+    }
 
     static let appGroup = "group.ro.vishrama.tobedone"
     static let fileName = "widget-agenda.json"
@@ -94,7 +103,7 @@ struct TodayProvider: TimelineProvider {
         }
         let snapshot = WidgetSnapshot.load()
         completion(TodayEntry(date: .now, items: Self.items(at: .now, from: snapshot), hasData: snapshot != nil,
-                              confidence: snapshot?.confidence))
+                              confidence: snapshot?.level(on: .now)))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodayEntry>) -> Void) {
@@ -112,7 +121,7 @@ struct TodayProvider: TimelineProvider {
         }
         let entries = dates.map {
             TodayEntry(date: $0, items: Self.items(at: $0, from: snapshot), hasData: snapshot != nil,
-                       confidence: snapshot?.confidence)
+                       confidence: snapshot?.level(on: $0))
         }
         completion(Timeline(entries: entries, policy: .atEnd))
     }
@@ -205,78 +214,33 @@ struct TodayWidgetView: View {
     }
 }
 
-// MARK: - Smiley background
+// MARK: - Face in the background
 
-/// A large, faint face behind the list, following the latest Confidence score:
-/// 8–10 a big laughing smile, 5–7 a gentle smile, 0–4 (or no score) nothing.
+/// A large, faint face behind the list, from today's Confidence level (as on Home),
+/// rounded to a whole level: each level from 2 to 10 has its own face, 0 and 1 the
+/// serious face. Nothing today yet: no face. Same faces as the Android version.
 struct ConfidenceFace: View {
     let score: Int?
 
-    private enum Mood { case big, gentle }
-
-    private var mood: Mood? {
+    private var imageName: String? {
         guard let score else { return nil }
-        switch score {
-        case 8...: return .big
-        case 5...7: return .gentle
-        default: return nil
+        switch min(max(score, 0), 10) {
+        case 2...10: return "face_\(min(max(score, 0), 10))"
+        default: return "face_serious"
         }
     }
 
     var body: some View {
-        if let mood {
+        if let imageName {
             GeometryReader { geo in
                 let size = min(geo.size.width, geo.size.height) * 0.85
-                ZStack {
-                    Circle()
-                        .stroke(lineWidth: size * 0.05)
-                    // Eyes
-                    HStack(spacing: size * 0.26) {
-                        Circle().frame(width: size * 0.1, height: size * 0.1)
-                        Circle().frame(width: size * 0.1, height: size * 0.1)
-                    }
-                    .offset(y: -size * 0.12)
-                    // Mouth
-                    if mood == .big {
-                        BigSmile()
-                            .frame(width: size * 0.5, height: size * 0.26)
-                            .offset(y: size * 0.17)
-                    } else {
-                        GentleSmile()
-                            .stroke(style: StrokeStyle(lineWidth: size * 0.05, lineCap: .round))
-                            .frame(width: size * 0.44, height: size * 0.14)
-                            .offset(y: size * 0.17)
-                    }
-                }
-                .frame(width: size, height: size)
-                .foregroundStyle(Color.yellow.opacity(0.28))
-                .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                Image(imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
             }
             .accessibilityHidden(true)
-        }
-    }
-
-    /// Open, laughing mouth (a filled half circle)
-    private struct BigSmile: Shape {
-        func path(in rect: CGRect) -> Path {
-            var p = Path()
-            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
-            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-            p.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.minY),
-                           control: CGPoint(x: rect.midX, y: rect.maxY * 2 - rect.minY))
-            p.closeSubpath()
-            return p
-        }
-    }
-
-    /// A simple curved line
-    private struct GentleSmile: Shape {
-        func path(in rect: CGRect) -> Path {
-            var p = Path()
-            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
-            p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY),
-                           control: CGPoint(x: rect.midX, y: rect.maxY + rect.height))
-            return p
         }
     }
 }

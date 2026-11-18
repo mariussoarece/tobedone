@@ -64,15 +64,18 @@ enum ReminderScheduler {
         let hour = defaults.object(forKey: hourKey) as? Int ?? defaultHour
         let minute = defaults.object(forKey: minuteKey) as? Int ?? defaultMinute
 
+        // Confidence scores first: this month's days count To Do, Monthly Expenses and
+        // Daily Routine (so the widget face below is up to date)
+        ConfidenceScorer.rescoreThisMonth(context: context)
+
         let tasks = (try? context.fetch(FetchDescriptor<TaskModel>())) ?? []
         let activities = (try? context.fetch(FetchDescriptor<ActivityItem>())) ?? []
         let monthly = (try? context.fetch(FetchDescriptor<MonthlyTaskModel>())) ?? []
 
-        // Keep the home-screen widget in step with the data (the latest Confidence
-        // score sets the smiley in the widget's background)
-        var latestConfidence = FetchDescriptor<ConfidenceEntry>(sortBy: [SortDescriptor(\.date, order: .reverse)])
-        latestConfidence.fetchLimit = 1
-        let confidence = (try? context.fetch(latestConfidence))?.first?.score
+        // Keep the home-screen widget in step with the data. Today's Confidence level,
+        // as a whole number, picks the face in the widget's background.
+        let confidenceEntries = (try? context.fetch(FetchDescriptor<ConfidenceEntry>())) ?? []
+        let confidence = ConfidenceLevels.today(confidenceEntries).map { Int($0.rounded()) }
         WidgetData.write(tasks: tasks, monthly: monthly, activities: activities, confidence: confidence)
 
         // Not while taking App Store screenshots

@@ -27,8 +27,10 @@ struct WidgetSnapshot: Codable {
     }
     var generatedAt: Date
     var items: [Item]
-    /// Latest Confidence score (0–10), for the smiley in the background
+    /// Today's Confidence level (0–10, whole number), for the face in the background
     var confidence: Int? = nil
+    /// The day that level belongs to (no face once the day is over)
+    var confidenceDay: Date? = nil
 }
 
 enum WidgetData {
@@ -60,13 +62,15 @@ enum WidgetData {
             }
         }
 
-        let snapshot = WidgetSnapshot(generatedAt: .now, items: items, confidence: confidence)
+        let snapshot = WidgetSnapshot(generatedAt: .now, items: items, confidence: confidence,
+                                      confidenceDay: confidence == nil ? nil : today)
         do {
             let data = try JSONEncoder().encode(snapshot)
             // Only rewrite (and redraw the widget) when something actually changed
             if let old = try? Data(contentsOf: url),
                let oldSnapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: old),
                oldSnapshot.confidence == confidence,
+               oldSnapshot.confidenceDay == snapshot.confidenceDay,
                (try? JSONEncoder().encode(oldSnapshot.items)) == (try? JSONEncoder().encode(items)) {
                 return
             }

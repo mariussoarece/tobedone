@@ -143,34 +143,42 @@ struct ConfidenceTrackerView: View {
     private var noteButtonTitle: String { showNoteField ? "Hide note" : "Add note" }
 
     // MARK: - Chart
+    /// One level per day since you started, up to today
+    private var levels: [(day: Date, level: Double)] { ConfidenceLevels.daily(entries) }
+
     private var chartCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Last 30 Days")
-                    .font(.headline)
-                Spacer()
-            }
-
-            let grouped = groupDailyAverages(for: entries, lastDays: 30)
-            Chart {
-                ForEach(grouped, id: \.day) { item in
-                    LineMark(
-                        x: .value("Day", item.day),
-                        y: .value("Avg", item.avg)
-                    )
-                    PointMark(
-                        x: .value("Day", item.day),
-                        y: .value("Avg", item.avg)
-                    )
+            let points = levels
+            Text("History")
+                .font(.headline)
+            if let first = points.first {
+                Text("Since \(first.day.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Chart {
+                    ForEach(points, id: \.day) { item in
+                        LineMark(
+                            x: .value("Day", item.day),
+                            y: .value("Level", item.level)
+                        )
+                        if points.count <= 60 {
+                            PointMark(
+                                x: .value("Day", item.day),
+                                y: .value("Level", item.level)
+                            )
+                        }
+                    }
+                    RuleMark(y: .value("Target", 7))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
+                        .annotation(position: .leading) { Text("Target 7+").font(.caption2).foregroundStyle(.secondary) }
                 }
-                // Drawn once (it used to be repeated for every data point)
-                RuleMark(y: .value("Target", 7))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
-                    .annotation(position: .leading) { Text("Target 7+").font(.caption2).foregroundStyle(.secondary) }
+                .frame(height: 180)
+                .chartYScale(domain: 0...10)
+                .accessibilityLabel("Confidence history chart")
+            } else {
+                Text("Your daily levels will appear here.")
+                    .foregroundStyle(.secondary)
             }
-            .frame(height: 180)
-            .chartYScale(domain: 1...10)
-            .accessibilityLabel("Confidence over time chart")
         }
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color(.secondarySystemBackground)))
@@ -182,14 +190,20 @@ struct ConfidenceTrackerView: View {
             Text("Stats")
                 .font(.headline)
 
-            let (avg7, avg30) = rollingAverages()
-            let (best, worst) = bestWorst()
-            let streak = currentStreak(minScore: 7)
+            let daily = levels
+            let best = daily.map(\.level).max() ?? 0
+            let worst = daily.map(\.level).min() ?? 0
+            let avg7 = ConfidenceLevels.average(entries, days: 7) ?? 0
+            let avg30 = ConfidenceLevels.average(entries, days: 30) ?? 0
+            let streak = ConfidenceLevels.streak(daily)
 
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 16) {
-                GridRow { statCell(title: "7‑day avg", value: String(format: "%.1f", avg7)) ; statCell(title: "30‑day avg", value: String(format: "%.1f", avg30)) }
-                GridRow { statCell(title: "Best day", value: String(format: "%.1f", best)) ; statCell(title: "Worst day", value: String(format: "%.1f", worst)) }
-                GridRow { statCell(title: "Streak ≥7", value: "\(streak) day\(streak == 1 ? "" : "s")") }
+            // One line: Best day, Worst day, 7-day avg, 30-day avg, Streak (days above 0)
+            HStack(spacing: 4) {
+                statCell(title: "Best day", value: String(format: "%.1f", best))
+                statCell(title: "Worst day", value: String(format: "%.1f", worst))
+                statCell(title: "7‑day avg", value: String(format: "%.1f", avg7))
+                statCell(title: "30‑day avg", value: String(format: "%.1f", avg30))
+                statCell(title: "Streak", value: "\(streak)")
             }
         }
         .padding(16)
@@ -197,10 +211,15 @@ struct ConfidenceTrackerView: View {
     }
 
     private func statCell(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.headline)
+        VStack(spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(value).font(.headline).lineLimit(1)
         }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Recent entries
@@ -209,10 +228,12 @@ struct ConfidenceTrackerView: View {
             Text("Recent")
                 .font(.headline)
 
-            if entries.isEmpty {
-                ContentUnavailableView("No entries yet", systemImage: "chart.line.uptrend.xyaxis", description: Text("Log your first confidence check above."))
+            // Every rating you saved yourself, with its note (not the daily scores)
+            let yours = entries.filter { !ConfidenceLevels.isDerived($0) }
+            if yours.isEmpty {
+                ContentUnavailableView("No entries yet", systemImage: "chart.line.uptrend.xyaxis", description: Text("Save your first confidence check above."))
             } else {
-                ForEach(entries.prefix(12)) { entry in
+                ForEach(yours) { entry in
                     HStack(alignment: .firstTextBaseline) {
                         Text("\(entry.score)")
                             .font(.title3.bold())
@@ -280,6 +301,7 @@ struct ConfidenceTrackerView: View {
     private func delete(_ entry: ConfidenceEntry) {
         modelContext.delete(entry)
         do { try modelContext.save() } catch { print("Delete error: \(error)") }
+        ReminderScheduler.refresh(context: modelContext)   // Home and widget follow today's level
     }
 
     // MARK: - Helpers
@@ -306,6 +328,7 @@ struct ConfidenceTrackerView: View {
     private func deleteAll() {
         for e in entries { modelContext.delete(e) }
         try? modelContext.save()
+        ReminderScheduler.refresh(context: modelContext)
     }
 
     // Seed data for previews / testing
@@ -325,49 +348,6 @@ struct ConfidenceTrackerView: View {
             }
         }
         try? modelContext.save()
-    }
-
-    // MARK: - Analytics
-    private func groupDailyAverages(for entries: [ConfidenceEntry], lastDays: Int) -> [(day: Date, avg: Double)] {
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: cal.date(byAdding: .day, value: -lastDays+1, to: .now)!)
-        let filtered = entries.filter { $0.date >= start }
-        let grouped = Dictionary(grouping: filtered, by: { cal.startOfDay(for: $0.date) })
-        return grouped.keys.sorted().map { day in
-            let vals = grouped[day]!.map { Double($0.score) }
-            let avg = vals.reduce(0, +) / Double(vals.count)
-            return (day, avg)
-        }
-    }
-
-    private func rollingAverages() -> (Double, Double) {
-        func avg(_ n: Int) -> Double {
-            let start = Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: -n+1, to: .now)!)
-            let vals = entries.filter { $0.date >= start }.map { Double($0.score) }
-            guard !vals.isEmpty else { return 0 }
-            return vals.reduce(0, +) / Double(vals.count)
-        }
-        return (avg(7), avg(30))
-    }
-
-    private func bestWorst() -> (Double, Double) {
-        let vals = entries.map { Double($0.score) }
-        return (vals.max() ?? 0, vals.min() ?? 0)
-    }
-
-    private func currentStreak(minScore: Int) -> Int {
-        let cal = Calendar.current
-        let grouped = Dictionary(grouping: entries, by: { cal.startOfDay(for: $0.date) })
-        var streak = 0
-        var day = cal.startOfDay(for: .now)
-        while true {
-            if let dayEntries = grouped[day], dayEntries.contains(where: { $0.score >= minScore }) {
-                streak += 1
-                guard let prev = cal.date(byAdding: .day, value: -1, to: day) else { break }
-                day = prev
-            } else { break }
-        }
-        return streak
     }
 }
 

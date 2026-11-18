@@ -57,9 +57,9 @@ struct HomeView: View {
 
                 Section {
                     HomeRow(title: Text("Shopping"), icon: "cart.fill", color: .red,
-                            detail: countText(shoppingItems.filter { !$0.isCompleted }.count)) { ShoppingTasksView() }
+                            detail: shoppingText) { ShoppingTasksView() }
                     HomeRow(title: Text("Grocery"), icon: "basket.fill", color: .yellow,
-                            detail: countText(groceryItems.filter { !$0.isBought }.count)) { GroceryTasksView() }
+                            detail: "\(groceryItems.filter { !$0.isBought }.count)") { GroceryTasksView() }
                 } header: {
                     Text("DO")
                         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))   // title line about 2 mm shorter
@@ -67,7 +67,7 @@ struct HomeView: View {
 
                 Section {
                     HomeRow(title: Text("Daily Routine"), icon: "clock.fill", color: .indigo,
-                            detail: activitiesLeftToday > 0 ? "\(activitiesLeftToday) left" : nil) { DailyActivitiesView() }
+                            detail: "\(activitiesLeftToday)") { DailyActivitiesView() }
                     HomeRow(title: Text("Confidence"), icon: "heart.fill", color: .pink,
                             detail: confidenceText) { ConfidenceTrackerView() }
                     HomeRow(title: Text("Journalling"), icon: "book.closed.fill", color: .orange,
@@ -217,22 +217,7 @@ struct HomeView: View {
     /// Same rule as the Daily Routine screen: the day's score is the share of
     /// activities done (0–10), kept in a ConfidenceEntry tagged "activities".
     private func syncActivityConfidence(for date: Date) {
-        let cal = Calendar.current
-        let dayStart = cal.startOfDay(for: date)
-        let dayItems = activities.filter { cal.isDate($0.date, inSameDayAs: dayStart) }
-        let existing = confidenceEntries.first {
-            cal.isDate($0.date, inSameDayAs: dayStart) && $0.tags.contains("activities")
-        }
-        guard !dayItems.isEmpty else { return }
-        let done = dayItems.filter(\.isCompleted).count
-        let score = Int((Double(done) / Double(dayItems.count) * 10).rounded())
-        if let existing {
-            existing.score = score
-        } else {
-            modelContext.insert(ConfidenceEntry(date: dayStart, score: score,
-                                                note: "Derived from activities", tags: ["activities"]))
-        }
-        try? modelContext.save()
+        ConfidenceScorer.sync(days: [date], context: modelContext)
     }
 
     // MARK: - Rating
@@ -281,13 +266,17 @@ struct HomeView: View {
         return "\(total.formatted(.number.precision(.fractionLength(0...2)))) \(selectedCurrency)"
     }
 
-    /// Average confidence over the last 7 days
+    /// Today's Confidence level as a whole number (the same one picks the widget face)
     private var confidenceText: String? {
-        guard let start = Calendar.current.date(byAdding: .day, value: -7, to: .now) else { return nil }
-        let recent = confidenceEntries.filter { $0.date >= start }
-        guard !recent.isEmpty else { return nil }
-        let avg = Double(recent.reduce(0) { $0 + $1.score }) / Double(recent.count)
-        return String(format: "%.1f", avg)
+        ConfidenceLevels.today(confidenceEntries).map { "\(Int($0.rounded()))" }
+    }
+
+    /// Items still to buy and their total, e.g. "(3) 200 USD"
+    private var shoppingText: String {
+        let toBuy = shoppingItems.filter { !$0.isCompleted }
+        guard !toBuy.isEmpty else { return "0" }
+        let total = toBuy.reduce(0) { $0 + $1.price }
+        return "(\(toBuy.count)) \(total.formatted(.number.precision(.fractionLength(0...2)))) \(selectedCurrency)"
     }
 
     /// "Best 42 s", shown at the right edge of the Focus Test row
