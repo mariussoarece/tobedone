@@ -93,7 +93,7 @@ struct TodayProvider: TimelineProvider {
             WidgetSnapshot.Item(kind: "task", title: "Send the report", start: now.addingTimeInterval(3600), durationMinutes: 0, done: false, detail: "To Do"),
             WidgetSnapshot.Item(kind: "monthly", title: "Internet", start: now.addingTimeInterval(7200), durationMinutes: 0, done: false, detail: "Monthly expense"),
         ]
-        return TodayEntry(date: now, items: sample, hasData: true, confidence: 9)
+        return TodayEntry(date: now, items: sample, hasData: true, confidence: 10)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (TodayEntry) -> Void) {
@@ -147,8 +147,8 @@ struct TodayWidgetView: View {
             if entry.items.isEmpty {
                 Spacer(minLength: 0)
                 Text(entry.hasData ? "Nothing more planned for today." : "Open ToBeDone once to show your day here.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.black)
                 Spacer(minLength: 0)
             } else {
                 ForEach(Array(entry.items.prefix(maxRows).enumerated()), id: \.offset) { _, item in
@@ -156,8 +156,8 @@ struct TodayWidgetView: View {
                 }
                 if entry.items.count > maxRows {
                     Text("+ \(entry.items.count - maxRows) more")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.black)
                 }
                 Spacer(minLength: 0)
             }
@@ -168,10 +168,11 @@ struct TodayWidgetView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Today")
-                    .font(.headline)
+                    .font(.headline.weight(.heavy))
+                    .foregroundStyle(.black)
                 Text(entry.date, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.black)
             }
             Spacer(minLength: 4)
             // + opens the app's main screen (the whole widget does too)
@@ -189,8 +190,8 @@ struct TodayWidgetView: View {
     private func row(_ item: WidgetSnapshot.Item) -> some View {
         HStack(spacing: 6) {
             Text(item.start, format: .dateTime.hour().minute())
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .font(.caption2.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.black)
                 .frame(width: compact ? 34 : 44, alignment: .leading)
                 .minimumScaleFactor(0.8)
                 .lineLimit(1)
@@ -199,14 +200,14 @@ struct TodayWidgetView: View {
                 .frame(width: 3, height: compact ? 18 : 24)
             VStack(alignment: .leading, spacing: 0) {
                 Text((item.done ? "✓ " : "") + item.title)
-                    .font(compact ? .caption : .subheadline)
+                    .font((compact ? Font.caption : Font.subheadline).weight(.bold))
                     .strikethrough(item.done)
-                    .foregroundStyle(item.done ? .secondary : .primary)
+                    .foregroundStyle(.black)
                     .lineLimit(1)
                 if !compact {
                     Text(item.detail)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.black)
                         .lineLimit(1)
                 }
             }
@@ -216,18 +217,13 @@ struct TodayWidgetView: View {
 
 // MARK: - Face in the background
 
-/// A large, faint face behind the list, from today's Confidence level (as on Home),
-/// rounded to a whole level: each level from 2 to 10 has its own face, 0 and 1 the
-/// serious face. Nothing today yet: no face. Same faces as the Android version.
+/// A large face behind the list, only when today's Confidence level (as on Home,
+/// rounded) is 10. Any other level, or nothing today yet: no face.
 struct ConfidenceFace: View {
     let score: Int?
 
     private var imageName: String? {
-        guard let score else { return nil }
-        switch min(max(score, 0), 10) {
-        case 2...10: return "face_\(min(max(score, 0), 10))"
-        default: return "face_serious"
-        }
+        score == 10 ? "face_10" : nil
     }
 
     var body: some View {
@@ -255,7 +251,7 @@ struct TodayWidget: Widget {
             TodayWidgetView(entry: entry)
                 .containerBackground(for: .widget) {
                     ZStack {
-                        Color(.systemBackground)
+                        Color.white   // always white, so the black text is easy to read
                         ConfidenceFace(score: entry.confidence)
                     }
                 }
