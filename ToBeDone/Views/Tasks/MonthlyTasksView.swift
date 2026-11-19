@@ -192,7 +192,7 @@ struct MonthlyTasksView: View {
         try? modelContext.save()
         ReminderScheduler.refresh(context: modelContext)
         listRevision += 1
-        if task.isPaid(in: .now) { Toast.show("Paid this month") }
+        if task.isPaid(in: .now) { Toast.show("Paid this month", color: .green) }
     }
 
     /// Default time for a new monthly expense: 10:00
@@ -218,12 +218,11 @@ struct MonthlyTasksView: View {
     private func monthlyRow(_ task: MonthlyTaskModel) -> some View {
         let paid = task.isPaid(in: .now)
         return MonthlyRow(title: task.title,
-                          schedule: task.isCompleted ? nil : task.scheduleText.map {
-                              paid ? "\($0) · ✓ paid this month" : $0
-                          },
+                          schedule: task.scheduleText,
                           price: task.price,
                           currency: selectedCurrency,
-                          paid: task.isCompleted)
+                          paid: task.isCompleted,
+                          paidThisMonth: paid && !task.isCompleted)
             .contentShape(Rectangle())
             .onTapGesture {
                 if !task.isCompleted { togglePaid(task) }
@@ -433,7 +432,8 @@ private struct MonthlyRow: View {
     let schedule: String?
     let price: Double
     let currency: String
-    var paid: Bool = false
+    var paid: Bool = false              // completed for good: crossed out
+    var paidThisMonth: Bool = false     // "✓ Paid this month" in green
 
     var body: some View {
         HStack {
@@ -442,9 +442,14 @@ private struct MonthlyRow: View {
                     .strikethrough(paid)
                     .foregroundStyle(paid ? Color.secondary : Color.primary)
                 // "Every month on day 5 at 10:00"
-                Text(schedule ?? "No day set – tap to choose one")
+                Text(schedule ?? "No day set – hold to choose one")
                     .font(.caption)
-                    .foregroundStyle(schedule == nil ? Color.orange : Color.secondary)
+                    .foregroundStyle(schedule == nil && !paid ? Color.orange : Color.secondary)
+                if paidThisMonth {
+                    Label("Paid this month", systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
+                }
             }
             Spacer()
             Text("\(price, specifier: "%.2f") \(currency)")
